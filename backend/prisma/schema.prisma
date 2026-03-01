@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Tournament {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  year        Int
+  totalRounds Int      @default(9) @map("total_rounds")
+  status      String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  participants Participant[]
+  rounds       Round[]
+  standings    Standing[]
+
+  @@map("tournaments")
+}
+
+model Participant {
+  id           String   @id @default(uuid())
+  name         String
+  group        String   // F or M
+  active       Boolean  @default(true)
+  birthYear    Int?     @map("birth_year")
+  tournamentId String   @map("tournament_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tournament Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  results    RoundResult[]
+  standings  Standing[]
+
+  @@map("participants")
+}
+
+model Round {
+  id           String @id @default(uuid())
+  number       Int
+  date         String // YYYY-MM-DD
+  status       String @default("SCHEDULED") // SCHEDULED | COMPLETED | CANCELLED
+  notes        String?
+  group        String // F or M
+  tournamentId String @map("tournament_id")
+
+  tournament Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  results    RoundResult[]
+
+  @@unique([tournamentId, number, group])
+  @@map("rounds")
+}
+
+model RoundResult {
+  id             String @id @default(uuid())
+  roundId        String @map("round_id")
+  participantId  String @map("participant_id")
+  position       Int?
+  pointsRaw      Int    @default(0) @map("points_raw")
+  present        Boolean @default(true)
+  absentReason   String  @default("NONE") @map("absent_reason") // NONE | FALTA | SORTEIO_VOLUNTARIA | SORTEIO
+  uniformPenalty Int     @default(0) @map("uniform_penalty")
+  setsWon        Int     @default(0) @map("sets_won")
+  setsLost       Int     @default(0) @map("sets_lost")
+  gamesWon       Int     @default(0) @map("games_won")
+  gamesLost      Int     @default(0) @map("games_lost")
+
+  round       Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, participantId])
+  @@map("round_results")
+}
+
+model Standing {
+  id            String @id @default(uuid())
+  participantId String @map("participant_id")
+  tournamentId  String @map("tournament_id")
+  seasonYear    Int    @map("season_year")
+
+  pointsRaw     Int @default(0) @map("points_raw")
+  pointsDiscard Int @default(0) @map("points_discard")
+  pointsBonus   Int @default(0) @map("points_bonus")
+  pointsPenalty Int @default(0) @map("points_penalty")
+  pointsValid   Int @default(0) @map("points_valid")
+
+  roundsPlayed  Int @default(0) @map("rounds_played")
+  firstPlaces   Int @default(0) @map("first_places")
+  secondPlaces  Int @default(0) @map("second_places")
+  thirdPlaces   Int @default(0) @map("third_places")
+  fourthPlaces  Int @default(0) @map("fourth_places")
+  fifthPlaces   Int @default(0) @map("fifth_places")
+  sixthPlaces   Int @default(0) @map("sixth_places")
+  seventhPlaces Int @default(0) @map("seventh_places")
+
+  setsWon   Int @default(0) @map("sets_won")
+  setsLost  Int @default(0) @map("sets_lost")
+  gamesWon  Int @default(0) @map("games_won")
+  gamesLost Int @default(0) @map("games_lost")
+
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([participantId, tournamentId])
+  @@map("standings")
+}

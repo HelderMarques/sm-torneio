@@ -1,0 +1,14 @@
+{
+  "name": "sm-torneio",
+  "private": true,
+  "description": "Secos & Molhados — Tijuca Tênis Clube",
+  "scripts": {
+    "build": "cd frontend && npm ci && npm run build && cd ../backend && npm ci && npx prisma generate",
+    "start": "cd backend && npx prisma migrate deploy && node src/index.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* Paleta TTC / Secos & Molhados — vermelho, branco, bronze */
+:root {
+  --color-brand: #9B2D3E;
+  --color-brand-hover: #8B2942;
+  --color-bronze: #B8860B;
+  --color-bronze-soft: #E8D5A3;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #fafafa;
+  color: #171717;
+}
+
+/* Links e botões com transição suave */
+a, button {
+  transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
