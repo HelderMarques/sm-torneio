@@ -188,7 +188,7 @@ async function recalculateStandings(group, tournamentId) {
 }
 
 async function getStandings(group, tournamentId) {
-  const standings = await prisma.standing.findMany({
+  let standings = await prisma.standing.findMany({
     where: { tournamentId },
     include: {
       participant: true,
@@ -196,7 +196,20 @@ async function getStandings(group, tournamentId) {
   });
 
   // Filter by group
-  const filtered = standings.filter((s) => s.participant.group === group);
+  let filtered = standings.filter((s) => s.participant.group === group);
+
+  // Se há participantes mas nenhum standing (ex.: ainda não houve rodadas), recalcular para exibir ranking zerado
+  const participantCount = await prisma.participant.count({
+    where: { group, active: true, tournamentId },
+  });
+  if (participantCount > 0 && filtered.length === 0) {
+    await recalculateStandings(group, tournamentId);
+    standings = await prisma.standing.findMany({
+      where: { tournamentId },
+      include: { participant: true },
+    });
+    filtered = standings.filter((s) => s.participant.group === group);
+  }
 
   // Sort by tiebreaker rules
   filtered.sort((a, b) => {
