@@ -8,8 +8,10 @@ export default function Participantes() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ name: '', group: 'F' });
+  const [bulkNames, setBulkNames] = useState('');
   const [message, setMessage] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const load = () => {
     tApi.get('/participants?group=F').then((res) => setParticipants(res.data));
@@ -34,6 +36,28 @@ export default function Participantes() {
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setMessage('Erro: ' + (err.response?.data?.error || err.message));
+    }
+  };
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    const trimmed = bulkNames.trim();
+    if (!trimmed) {
+      setMessage('Digite pelo menos um nome (separados por vírgula).');
+      setTimeout(() => setMessage(''), 3000);
+      return;
+    }
+    setBulkLoading(true);
+    try {
+      const res = await tApi.post('/participants/bulk', { names: trimmed, group: 'F' });
+      setMessage(`${res.data.created} participante(s) adicionado(s).`);
+      setBulkNames('');
+      load();
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setMessage('Erro: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -104,6 +128,27 @@ export default function Participantes() {
           </form>
         </div>
       )}
+
+      <div className="bg-white rounded-2xl border border-neutral-200/80 p-6 mb-6">
+        <h3 className="font-semibold text-neutral-900 mb-2">Adicionar vários participantes</h3>
+        <p className="text-sm text-neutral-500 mb-3">Digite os nomes separados por vírgula (ou por linha).</p>
+        <form onSubmit={handleBulkSubmit} className="flex flex-col gap-3">
+          <textarea
+            value={bulkNames}
+            onChange={(e) => setBulkNames(e.target.value)}
+            placeholder="Ex: Ana Silva, Maria Santos, João Oliveira"
+            rows={3}
+            className="border border-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] resize-y"
+          />
+          <button
+            type="submit"
+            disabled={bulkLoading || !bulkNames.trim()}
+            className="self-start bg-[#9B2D3E] hover:bg-[#8B2942] disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-medium"
+          >
+            {bulkLoading ? 'Adicionando...' : 'Adicionar todos'}
+          </button>
+        </form>
+      </div>
 
       <p className="text-neutral-500 text-sm mb-6">{participants.length} participantes</p>
 

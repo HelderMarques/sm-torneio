@@ -57,6 +57,41 @@ router.get('/:id/history', async (req, res) => {
   }
 });
 
+// POST /bulk - create multiple participants (admin only); body: { names: "Nome1, Nome2, Nome3", group: "F" }
+router.post('/bulk', authMiddleware, async (req, res) => {
+  try {
+    const { names, group } = req.body;
+    if (!names || typeof names !== 'string' || !group) {
+      return res.status(400).json({ error: 'Envie "names" (vários nomes separados por vírgula) e "group" (F ou M)' });
+    }
+    if (!['F', 'M'].includes(group.toUpperCase())) {
+      return res.status(400).json({ error: 'Grupo deve ser F ou M' });
+    }
+    const nameList = names
+      .split(/[,;\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (nameList.length === 0) {
+      return res.status(400).json({ error: 'Nenhum nome válido' });
+    }
+    const created = [];
+    for (const name of nameList) {
+      const participant = await prisma.participant.create({
+        data: {
+          name,
+          group: group.toUpperCase(),
+          tournamentId: req.tournament.id,
+        },
+      });
+      created.push(participant);
+    }
+    res.status(201).json({ created: created.length, participants: created });
+  } catch (error) {
+    console.error('Error creating participants (bulk):', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // POST / - create participant (admin only)
 router.post('/', authMiddleware, async (req, res) => {
   try {

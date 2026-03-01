@@ -41,14 +41,19 @@ Em **Variables** (ou **Settings** → **Variables**), adiciona:
 
 - **JWT_SECRET**: gera uma string segura (ex.: `openssl rand -base64 32` no terminal) e cola aqui. Não partilhes este valor.
 
-## 6. Volume para o SQLite (dados persistentes)
+## 6. Volume para o SQLite (dados persistentes) — **obrigatório**
 
-Para os dados não se perderem em cada deploy:
+**Sem este passo, a base de dados é apagada em cada novo deploy.** O contentor usa um disco efémero; só um Volume mantém o ficheiro SQLite entre deploys.
 
-1. Em **Settings** do serviço, vai a **Volumes**.
-2. Clica em **Add Volume**.
-3. **Mount Path**: `/data`.
-4. Garante que `DATABASE_URL` está como `file:/data/prisma.sqlite` (o Prisma criará o ficheiro na primeira migração).
+O Volume **não** fica no menu Settings do serviço (Source, Networking, Build, etc.). Adiciona-se a partir do canvas do projeto:
+
+1. Volta ao **canvas do projeto** (a vista onde vês o teu serviço como uma caixa).
+2. **Opção A:** Atalho **`Ctrl+K`** ou **`Cmd+K`** (Mac) → Command Palette. Escreve **"volume"** e escolhe criar um volume.
+3. **Opção B:** Clica com o **botão direito** na área do canvas (ou no serviço) e escolhe a opção para criar/add Volume.
+4. Ao criar: associa o volume ao **serviço sm-torneio** e define **Mount Path** = **`/data`**.
+5. Garante que a variável **`DATABASE_URL`** (em Variables do serviço) está como **`file:/data/prisma.sqlite`**.
+
+Se já tiveste dados e eles “desapareceram” após um deploy, era porque o Volume não estava configurado (ou o `DATABASE_URL` não apontava para `/data`). Configura o Volume agora; a partir daí os dados persistem.
 
 ## 7. Domínio público
 
