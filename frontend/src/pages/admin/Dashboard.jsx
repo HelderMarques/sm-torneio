@@ -76,6 +76,10 @@ export default function Dashboard() {
 
       {/* Actions */}
       <div className="grid md:grid-cols-3 gap-4 mb-8">
+        <Link to={`/admin/t/${slug}/calendario`} className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block">
+          <h3 className="font-semibold text-neutral-900 mb-1">Calendário</h3>
+          <p className="text-sm text-neutral-500">Definir datas das etapas e alterar status (agendada/realizada/cancelada)</p>
+        </Link>
         <Link to={`/admin/t/${slug}/etapas`} className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block">
           <h3 className="font-semibold text-neutral-900 mb-1">Registrar Resultados</h3>
           <p className="text-sm text-neutral-500">Registrar colocação, sets e games de uma etapa</p>

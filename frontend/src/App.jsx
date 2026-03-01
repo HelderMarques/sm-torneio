@@ -14,6 +14,7 @@ import Dashboard from './pages/admin/Dashboard';
 import Etapas from './pages/admin/Etapas';
 import EtapaDetail from './pages/admin/EtapaDetail';
 import Participantes from './pages/admin/Participantes';
+import CalendarioAdmin from './pages/admin/Calendario';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -51,6 +52,7 @@ function AppContent() {
       {/* Admin tournament-scoped routes */}
       <Route path="/admin/t/:slug" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
+        <Route path="calendario" element={<CalendarioAdmin />} />
         <Route path="etapas" element={<Etapas />} />
         <Route path="etapa/:id" element={<EtapaDetail />} />
         <Route path="participantes" element={<Participantes />} />

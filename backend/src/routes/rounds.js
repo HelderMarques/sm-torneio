@@ -24,6 +24,43 @@ router.get('/', async (req, res) => {
   }
 });
 
+// POST / - create round (admin) - calendário
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const { number, date, group } = req.body;
+    if (number == null || !date || !group) {
+      return res.status(400).json({ error: 'Número, data (YYYY-MM-DD) e grupo (F ou M) são obrigatórios' });
+    }
+    if (!['F', 'M'].includes(group.toUpperCase())) {
+      return res.status(400).json({ error: 'Grupo deve ser F ou M' });
+    }
+    const num = parseInt(number, 10);
+    const tournament = await prisma.tournament.findUnique({ where: { id: req.tournament.id } });
+    if (!tournament) return res.status(404).json({ error: 'Torneio não encontrado' });
+    if (num < 1 || num > tournament.totalRounds) {
+      return res.status(400).json({ error: `Número da etapa deve ser entre 1 e ${tournament.totalRounds}` });
+    }
+    const existing = await prisma.round.findFirst({
+      where: { tournamentId: req.tournament.id, number: num, group: group.toUpperCase() },
+    });
+    if (existing) {
+      return res.status(400).json({ error: `Já existe a ${num}ª etapa para o grupo ${group}` });
+    }
+    const round = await prisma.round.create({
+      data: {
+        number: num,
+        date: String(date).slice(0, 10),
+        group: group.toUpperCase(),
+        tournamentId: req.tournament.id,
+      },
+    });
+    res.status(201).json(round);
+  } catch (error) {
+    console.error('Error creating round:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // GET /:id - single round with results
 router.get('/:id', async (req, res) => {
   try {
