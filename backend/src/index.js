@@ -38,7 +38,8 @@ if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../../frontend/dist');
   if (fs.existsSync(distPath)) {
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    // Catch-all para SPA: path-to-regexp (Express 5+) não aceita '*', usar '/(.*)'
+    app.get('/(.*)', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
