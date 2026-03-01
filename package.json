@@ -9,6 +9,6 @@
     "dev:frontend": "cd frontend && npm run dev"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }
