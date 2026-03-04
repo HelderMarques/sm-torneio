@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
-const { recalculateStandings, getStandings } = require('../services/standingsService');
+const { recalculateStandings, getStandings, simulateStandings } = require('../services/standingsService');
 
 const router = express.Router({ mergeParams: true });
 
@@ -31,6 +31,26 @@ router.post('/recalculate', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Error recalculating:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /simulate - simular nova etapa (não persiste)
+router.post('/simulate', async (req, res) => {
+  try {
+    const { group, results } = req.body;
+    const upperGroup = (group || '').toUpperCase();
+    if (!['F', 'M'].includes(upperGroup)) {
+      return res.status(400).json({ error: 'Grupo deve ser F ou M' });
+    }
+    if (!Array.isArray(results)) {
+      return res.status(400).json({ error: 'Campo \"results\" deve ser um array' });
+    }
+
+    const simulation = await simulateStandings(upperGroup, req.tournament.id, results);
+    res.json(simulation);
+  } catch (error) {
+    console.error('Error simulating standings:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

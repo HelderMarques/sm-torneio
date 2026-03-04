@@ -61,11 +61,23 @@ export default function Home() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Próxima etapa — sem repetir título do header */}
       {nextRound && (
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          <span className="text-neutral-500 text-sm">🎾 Próxima etapa</span>
-          <span className="font-medium text-neutral-900">
-            {nextRound.number}ª Etapa — {new Date(nextRound.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
-          </span>
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-neutral-500 text-sm">🎾 Próxima etapa</span>
+            <span className="font-medium text-neutral-900">
+              {nextRound.number}ª Etapa —{' '}
+              {new Date(nextRound.date + 'T12:00:00').toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: 'long',
+              })}
+            </span>
+          </div>
+          <Link
+            to={`/t/${slug}/simular`}
+            className="text-xs font-medium text-[#9B2D3E] hover:text-[#8B2942] bg-[#9B2D3E]/5 px-3 py-1.5 rounded-full"
+          >
+            Simular etapa →
+          </Link>
         </div>
       )}
 
