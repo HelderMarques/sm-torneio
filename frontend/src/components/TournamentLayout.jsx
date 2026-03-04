@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { TournamentProvider, useTournament } from '../hooks/useTournament';
 import Navbar from './Navbar';
+import BottomTabBar from './BottomTabBar';
 
 function TournamentContent() {
   const { loading, error } = useTournament();
@@ -27,9 +28,10 @@ function TournamentContent() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-neutral-50 pb-16 md:pb-0">
       <Navbar />
       <Outlet />
+      <BottomTabBar />
     </div>
   );
 }
