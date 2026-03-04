@@ -285,12 +285,12 @@ export default function SimularEtapa() {
                   const delta = s.positionDelta || 0;
                   const deltaLabel =
                     delta === 0 ? '—' :
-                    delta > 0 ? `↓ ${Math.abs(delta)}` :
-                    `↑ ${Math.abs(delta)}`;
+                    delta > 0 ? `↑ ${Math.abs(delta)}` :
+                    `↓ ${Math.abs(delta)}`;
                   const deltaClass =
                     delta === 0 ? 'text-neutral-500' :
-                    delta > 0 ? 'text-red-600' :
-                    'text-emerald-600';
+                    delta > 0 ? 'text-emerald-600' :
+                    'text-red-600';
                   return (
                     <tr key={s.participantId} className="border-b border-neutral-100 hover:bg-neutral-50/40">
                       <td className="px-3 py-2 text-neutral-900">{s.position}º</td>
