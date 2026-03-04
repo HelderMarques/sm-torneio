@@ -283,6 +283,36 @@
           }
         }
       }
+    },
+    "/tournaments/{slug}/standings/{participantId}": {
+      "put": {
+        "summary": "Atualizar manualmente os números de classificação de uma participante",
+        "description": "Permite ao admin forçar números de pontos, participações e estatísticas em uma linha de classificação. Útil para correções manuais.",
+        "tags": ["Standings"],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "participantId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StandingUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Standing atualizada",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Standing" }
+              }
+            }
+          },
+          "404": { "description": "Standing não encontrada" }
+        }
+      }
     }
   },
   "components": {
@@ -431,6 +461,29 @@
           "year": { "type": "integer" },
           "totalRounds": { "type": "integer" },
           "status": { "type": "string", "enum": ["ACTIVE", "ARCHIVED"] }
+        }
+      },
+      "StandingUpdateRequest": {
+        "type": "object",
+        "description": "Qualquer campo fornecido será atualizado na linha de classificação correspondente.",
+        "properties": {
+          "pointsRaw": { "type": "integer" },
+          "pointsDiscard": { "type": "integer" },
+          "pointsBonus": { "type": "integer" },
+          "pointsPenalty": { "type": "integer" },
+          "pointsValid": { "type": "integer" },
+          "roundsPlayed": { "type": "integer" },
+          "firstPlaces": { "type": "integer" },
+          "secondPlaces": { "type": "integer" },
+          "thirdPlaces": { "type": "integer" },
+          "fourthPlaces": { "type": "integer" },
+          "fifthPlaces": { "type": "integer" },
+          "sixthPlaces": { "type": "integer" },
+          "seventhPlaces": { "type": "integer" },
+          "setsWon": { "type": "integer" },
+          "setsLost": { "type": "integer" },
+          "gamesWon": { "type": "integer" },
+          "gamesLost": { "type": "integer" }
         }
       }
     }

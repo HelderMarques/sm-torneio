@@ -19,6 +19,83 @@ router.get('/:group', async (req, res) => {
   }
 });
 
+// PUT /:id - atualizar standing de uma participante (admin only)
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tournament } = req;
+    const {
+      pointsRaw,
+      pointsDiscard,
+      pointsBonus,
+      pointsPenalty,
+      pointsValid,
+      roundsPlayed,
+      firstPlaces,
+      secondPlaces,
+      thirdPlaces,
+      fourthPlaces,
+      fifthPlaces,
+      sixthPlaces,
+      seventhPlaces,
+      setsWon,
+      setsLost,
+      gamesWon,
+      gamesLost,
+    } = req.body;
+
+    const existing = await require('@prisma/client').PrismaClient.prototype.standing?.findFirst
+      ? null
+      : null; // placeholder to avoid accidental use
+
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+
+    const standing = await prisma.standing.findFirst({
+      where: { participantId: id, tournamentId: tournament.id },
+    });
+    if (!standing) {
+      await prisma.$disconnect();
+      return res.status(404).json({ error: 'Standing não encontrada para esta participante/torneio' });
+    }
+
+    const data = {};
+    if (pointsRaw !== undefined) data.pointsRaw = Number(pointsRaw);
+    if (pointsDiscard !== undefined) data.pointsDiscard = Number(pointsDiscard);
+    if (pointsBonus !== undefined) data.pointsBonus = Number(pointsBonus);
+    if (pointsPenalty !== undefined) data.pointsPenalty = Number(pointsPenalty);
+    if (pointsValid !== undefined) data.pointsValid = Number(pointsValid);
+    if (roundsPlayed !== undefined) data.roundsPlayed = Number(roundsPlayed);
+    if (firstPlaces !== undefined) data.firstPlaces = Number(firstPlaces);
+    if (secondPlaces !== undefined) data.secondPlaces = Number(secondPlaces);
+    if (thirdPlaces !== undefined) data.thirdPlaces = Number(thirdPlaces);
+    if (fourthPlaces !== undefined) data.fourthPlaces = Number(fourthPlaces);
+    if (fifthPlaces !== undefined) data.fifthPlaces = Number(fifthPlaces);
+    if (sixthPlaces !== undefined) data.sixthPlaces = Number(sixthPlaces);
+    if (seventhPlaces !== undefined) data.seventhPlaces = Number(seventhPlaces);
+    if (setsWon !== undefined) data.setsWon = Number(setsWon);
+    if (setsLost !== undefined) data.setsLost = Number(setsLost);
+    if (gamesWon !== undefined) data.gamesWon = Number(gamesWon);
+    if (gamesLost !== undefined) data.gamesLost = Number(gamesLost);
+
+    const updated = await prisma.standing.update({
+      where: {
+        participantId_tournamentId: {
+          participantId: id,
+          tournamentId: tournament.id,
+        },
+      },
+      data,
+    });
+
+    await prisma.$disconnect();
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating standing:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // POST /recalculate - recalculate all (admin)
 router.post('/recalculate', authMiddleware, async (req, res) => {
   try {
