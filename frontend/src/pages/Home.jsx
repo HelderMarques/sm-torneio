@@ -110,7 +110,7 @@ export default function Home() {
         <StandingsTable standings={standings} showDetails={true} />
       </div>
 
-      {/* Calendário e Regulamento com menos destaque */}
+      {/* Links de apoio */}
       <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-500 border-t border-neutral-100 pt-6">
         <Link to={`/t/${slug}/calendario`} className="hover:text-neutral-700">
           Calendário
@@ -119,6 +119,15 @@ export default function Home() {
         <Link to={`/t/${slug}/regulamento`} className="hover:text-neutral-700">
           Regulamento
         </Link>
+        <span className="text-neutral-300 hidden sm:inline">·</span>
+        <a
+          href="/api/docs"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-neutral-700"
+        >
+          API docs
+        </a>
       </div>
     </div>
   );
