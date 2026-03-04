@@ -49,7 +49,7 @@ function AppContent() {
       </Route>
 
       {/* Admin */}
-      <Route path="/admin" element={<Navigate to="/admin/t/2026" replace />} />
+      <Route path="/admin" element={<Navigate to="/admin/tournaments" replace />} />
       <Route path="/admin/login" element={<Login />} />
 
       {/* Admin global (não depende de slug) */}
