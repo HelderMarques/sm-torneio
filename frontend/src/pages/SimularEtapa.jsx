@@ -123,10 +123,16 @@ export default function SimularEtapa() {
   }
 
   const currentById = new Map(standings.map((s) => [s.participantId, s]));
+  const usedCounts = Object.values(selection).reduce((acc, v) => {
+    if (v.position && (v.status || 'PRESENT') === 'PRESENT') {
+      acc[v.position] = (acc[v.position] || 0) + 1;
+    }
+    return acc;
+  }, {});
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Simular etapa</h1>
           <p className="text-sm text-neutral-500 mt-1">
@@ -165,7 +171,81 @@ export default function SimularEtapa() {
           Para representar as duplas, atribua a mesma posição na etapa para as duas atletas que formam a dupla.
           Cada posição da etapa (1º a 7º) pode ser usada no máximo por duas atletas.
         </p>
-        <div className="max-h-[360px] overflow-auto border border-neutral-100 rounded-xl">
+
+        {/* Versão mobile: cards em coluna, sem scroll horizontal */}
+        <div className="space-y-3 md:hidden">
+          {participants.map((p) => {
+            const current = currentById.get(p.id);
+            const sel = selection[p.id]?.position || '';
+            const status = selection[p.id]?.status || 'PRESENT';
+            const isPresent = status === 'PRESENT';
+
+            return (
+              <div
+                key={p.id}
+                className="border border-neutral-200 rounded-xl px-4 py-3 bg-white"
+              >
+                <div className="flex items-baseline justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-neutral-900 truncate">
+                      {p.name}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      Posição atual:{' '}
+                      <span className="font-medium text-neutral-700">
+                        {current ? `${current.position}º` : '—'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-xs font-medium text-neutral-500 mb-1">
+                      Situação na etapa
+                    </p>
+                    <select
+                      value={status}
+                      onChange={(e) => handleChangeStatus(p.id, e.target.value)}
+                      className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
+                    >
+                      {STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-neutral-500 mb-1">
+                      Posição na etapa
+                    </p>
+                    <select
+                      value={isPresent ? sel : ''}
+                      onChange={(e) => handleChangePosition(p.id, e.target.value || null)}
+                      disabled={!isPresent}
+                      className="w-full border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] disabled:bg-neutral-50 disabled:text-neutral-400"
+                    >
+                      <option value="">(sem resultado)</option>
+                      {[1, 2, 3, 4, 5, 6, 7].map((pos) => {
+                        const used = usedCounts[pos] || 0;
+                        const isCurrent = sel === pos;
+                        const disabled = !isPresent || (!isCurrent && used >= 2);
+                        return (
+                          <option key={pos} value={pos} disabled={disabled}>
+                            {pos}º lugar {disabled && isPresent ? '(já usado por 2 atletas)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Versão desktop: tabela completa com controles em linha */}
+        <div className="hidden md:block max-h-[360px] overflow-auto border border-neutral-100 rounded-xl">
           <table className="min-w-full text-sm">
             <thead className="bg-neutral-50 border-b border-neutral-100">
               <tr>
@@ -188,12 +268,6 @@ export default function SimularEtapa() {
                 const current = currentById.get(p.id);
                 const sel = selection[p.id]?.position || '';
                 const status = selection[p.id]?.status || 'PRESENT';
-                const usedCounts = Object.values(selection).reduce((acc, v) => {
-                  if (v.position && (v.status || 'PRESENT') === 'PRESENT') {
-                    acc[v.position] = (acc[v.position] || 0) + 1;
-                  }
-                  return acc;
-                }, {});
                 const isPresent = status === 'PRESENT';
 
                 return (
