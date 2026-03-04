@@ -90,16 +90,6 @@ export default function Dashboard() {
           <h3 className="font-semibold text-neutral-900 mb-1">Gerenciar Participantes</h3>
           <p className="text-sm text-neutral-500">Adicionar, editar ou desativar participantes</p>
         </Link>
-        <button
-          onClick={handleRecalculate}
-          disabled={recalculating}
-          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all text-left disabled:opacity-50"
-        >
-          <h3 className="font-semibold text-neutral-900 mb-1">
-            {recalculating ? 'Recalculando...' : 'Recalcular Classificação'}
-          </h3>
-          <p className="text-sm text-neutral-500">Forçar recálculo completo de standings</p>
-        </button>
       </div>
 
       {/* Recent rounds */}
