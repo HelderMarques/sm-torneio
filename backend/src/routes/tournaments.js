@@ -1,5 +1,6 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -55,6 +56,65 @@ router.get('/:slug', async (req, res) => {
     res.json({ ...tournament, participantCount, completedRounds });
   } catch (error) {
     console.error('Error fetching tournament:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /api/tournaments - create tournament (admin only)
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const { name, slug, year, totalRounds, status } = req.body;
+    if (!name || !slug || !year) {
+      return res.status(400).json({ error: 'Nome, slug e ano são obrigatórios' });
+    }
+
+    const data = {
+      name: name.trim(),
+      slug: slug.trim(),
+      year: Number(year),
+      totalRounds: totalRounds ? Number(totalRounds) : 9,
+      status: status || 'ACTIVE',
+    };
+
+    const existing = await prisma.tournament.findUnique({
+      where: { slug: data.slug },
+    });
+    if (existing) {
+      return res.status(409).json({ error: 'Já existe um torneio com este slug' });
+    }
+
+    const tournament = await prisma.tournament.create({ data });
+    res.status(201).json(tournament);
+  } catch (error) {
+    console.error('Error creating tournament:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// PUT /api/tournaments/:slug - update tournament (admin only)
+router.put('/:slug', authMiddleware, async (req, res) => {
+  try {
+    const existing = await prisma.tournament.findUnique({
+      where: { slug: req.params.slug },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: 'Torneio não encontrado' });
+    }
+
+    const { name, year, totalRounds, status } = req.body;
+    const data = {};
+    if (name !== undefined) data.name = name.trim();
+    if (year !== undefined) data.year = Number(year);
+    if (totalRounds !== undefined) data.totalRounds = Number(totalRounds);
+    if (status !== undefined) data.status = status;
+
+    const updated = await prisma.tournament.update({
+      where: { slug: req.params.slug },
+      data,
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating tournament:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

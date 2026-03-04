@@ -3,7 +3,7 @@
   "info": {
     "title": "SM Torneio API",
     "description": "API do Torneio Recreativo Secos & Molhados — Tijuca Tênis Clube.\n\nTodas as rotas estão sob o prefixo `/api`. As rotas *tournament-scoped* usam o slug do torneio (`2026`, `demo`, etc) no caminho.",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "servers": [
     { "url": "http://localhost:3001/api", "description": "Desenvolvimento local" },
@@ -79,6 +79,30 @@
             }
           }
         }
+      },
+      "post": {
+        "summary": "Criar novo torneio",
+        "description": "Requer token de administrador (mesmo login do painel).",
+        "tags": ["Tournaments"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TournamentCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Torneio criado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Tournament" }
+              }
+            }
+          },
+          "409": { "description": "Slug já utilizado" }
+        }
       }
     },
     "/tournaments/{slug}": {
@@ -100,6 +124,38 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/TournamentWithStats" }
+              }
+            }
+          },
+          "404": { "description": "Torneio não encontrado" }
+        }
+      },
+      "put": {
+        "summary": "Atualizar torneio",
+        "description": "Permite alterar nome, ano, total de etapas e status. Slug não é alterado.",
+        "tags": ["Tournaments"],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TournamentUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Torneio atualizado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Tournament" }
               }
             }
           },
@@ -356,6 +412,26 @@
             }
           }
         ]
+      },
+      "TournamentCreateRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "year": { "type": "integer" },
+          "totalRounds": { "type": "integer", "default": 9 },
+          "status": { "type": "string", "enum": ["ACTIVE", "ARCHIVED"] }
+        },
+        "required": ["name", "slug", "year"]
+      },
+      "TournamentUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "year": { "type": "integer" },
+          "totalRounds": { "type": "integer" },
+          "status": { "type": "string", "enum": ["ACTIVE", "ARCHIVED"] }
+        }
       }
     }
   }
