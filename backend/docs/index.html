@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>SM Torneio API — Docs</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css"
+    />
+    <style>
+      body {
+        margin: 0;
+        background: #0b1020;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+          sans-serif;
+      }
+      .topbar {
+        display: none !important;
+      }
+      .docs-shell {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      .docs-header {
+        padding: 16px 32px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        background: radial-gradient(circle at 0 0, #9b2d3e33 0, transparent 50%),
+          radial-gradient(circle at 100% 0, #facc1533 0, transparent 45%),
+          #050816;
+        color: #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .docs-header-title {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .docs-header-title h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .docs-header-title p {
+        margin: 0;
+        font-size: 12px;
+        color: #9ca3af;
+      }
+      .badge-env {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        font-size: 11px;
+        color: #e5e7eb;
+      }
+      .badge-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.25);
+      }
+      .docs-main {
+        flex: 1;
+        padding: 16px 0 24px;
+        background: radial-gradient(circle at 0 0, #0ea5e933 0, transparent 50%),
+          radial-gradient(circle at 100% 100%, #9b2d3e33 0, transparent 50%),
+          #020617;
+      }
+      #swagger-ui {
+        max-width: 1080px;
+        margin: 0 auto;
+        background: #0b1020;
+        border-radius: 16px;
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.75);
+        border: 1px solid rgba(148, 163, 184, 0.35);
+      }
+      .docs-footer {
+        padding: 10px 32px 16px;
+        font-size: 11px;
+        color: #6b7280;
+        text-align: right;
+      }
+      .docs-footer a {
+        color: #9b2d3e;
+        text-decoration: none;
+      }
+      .docs-footer a:hover {
+        text-decoration: underline;
+      }
+      @media (max-width: 768px) {
+        .docs-header {
+          padding: 12px 16px;
+        }
+        #swagger-ui {
+          margin: 0 8px;
+          border-radius: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="docs-shell">
+      <header class="docs-header">
+        <div class="docs-header-title">
+          <h1>SM Torneio API</h1>
+          <p>REST API — Secos &amp; Molhados · Tijuca Tênis Clube</p>
+        </div>
+        <div class="badge-env">
+          <span class="badge-dot"></span>
+          <span>OpenAPI 3 · Swagger UI</span>
+        </div>
+      </header>
+
+      <main class="docs-main">
+        <div id="swagger-ui"></div>
+      </main>
+
+      <footer class="docs-footer">
+        Documentação gerada a partir de <code>/api/openapi.json</code>.
+      </footer>
+    </div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js"></script>
+    <script>
+      window.onload = () => {
+        window.ui = SwaggerUIBundle({
+          url: '/api/openapi.json',
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          layout: 'BaseLayout',
+        });
+      };
+    </script>
+  </body>
+</html>
+

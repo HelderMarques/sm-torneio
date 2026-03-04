@@ -34,9 +34,15 @@ app.get('/api/health', (req, res) => {
 });
 
 // API docs (OpenAPI 3) em JSON
-app.get('/api/docs', (req, res) => {
+app.get('/api/openapi.json', (req, res) => {
   const specPath = path.join(__dirname, '../openapi.json');
   res.sendFile(specPath);
+});
+
+// API docs interativas (Swagger UI a partir do openapi.json)
+app.get('/api/docs', (req, res) => {
+  const docsHtmlPath = path.join(__dirname, '../docs/index.html');
+  res.sendFile(docsHtmlPath);
 });
 
 // Em produção, servir o frontend (build do Vite) e fallback SPA para o React Router
