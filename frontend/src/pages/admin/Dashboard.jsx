@@ -8,8 +8,6 @@ export default function Dashboard() {
   const { tournament, slug, tApi } = useTournament();
   const [rounds, setRounds] = useState([]);
   const [participants, setParticipants] = useState([]);
-  const [recalculating, setRecalculating] = useState(false);
-  const [message, setMessage] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -20,19 +18,6 @@ export default function Dashboard() {
       setParticipants(pRes.data);
     });
   }, [slug]);
-
-  const handleRecalculate = async () => {
-    setRecalculating(true);
-    try {
-      const res = await tApi.post('/standings/recalculate');
-      setMessage(`Classificação recalculada: ${res.data.F} participantes`);
-      setTimeout(() => setMessage(''), 3000);
-    } catch {
-      setMessage('Erro ao recalcular');
-    } finally {
-      setRecalculating(false);
-    }
-  };
 
   const femaleRounds = rounds.filter((r) => r.group === 'F');
   const completedFem = femaleRounds.filter((r) => r.status === 'COMPLETED').length;
@@ -62,12 +47,6 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
-
-      {message && (
-        <div className="bg-emerald-50 text-emerald-800 p-4 rounded-xl mb-6 text-sm">
-          {message}
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
