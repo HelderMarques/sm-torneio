@@ -1,0 +1,363 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SM Torneio API",
+    "description": "API do Torneio Recreativo Secos & Molhados — Tijuca Tênis Clube.\n\nTodas as rotas estão sob o prefixo `/api`. As rotas *tournament-scoped* usam o slug do torneio (`2026`, `demo`, etc) no caminho.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "http://localhost:3001/api", "description": "Desenvolvimento local" },
+    { "url": "https://seu-dominio.up.railway.app/api", "description": "Produção (Railway)" }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "Autenticar administrador",
+        "tags": ["Auth"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" },
+              "example": { "email": "admin@smtorneio.com", "password": "admin123" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login bem-sucedido",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "401": { "description": "Credenciais inválidas" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Obter utilizador autenticado",
+        "tags": ["Auth"],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": true,
+            "description": "Token JWT no formato `Bearer &lt;token&gt;`",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Utilizador autenticado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MeResponse" }
+              }
+            }
+          },
+          "401": { "description": "Token ausente ou inválido" }
+        }
+      }
+    },
+    "/tournaments": {
+      "get": {
+        "summary": "Listar torneios",
+        "tags": ["Tournaments"],
+        "responses": {
+          "200": {
+            "description": "Lista de torneios",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Tournament" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tournaments/{slug}": {
+      "get": {
+        "summary": "Detalhes de um torneio",
+        "tags": ["Tournaments"],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "example": "2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Torneio encontrado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TournamentWithStats" }
+              }
+            }
+          },
+          "404": { "description": "Torneio não encontrado" }
+        }
+      }
+    },
+    "/tournaments/{slug}/participants": {
+      "get": {
+        "summary": "Listar participantes de um torneio",
+        "tags": ["Participants"],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por grupo: F ou M",
+            "schema": { "type": "string", "enum": ["F", "M"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de participantes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Participant" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tournaments/{slug}/rounds": {
+      "get": {
+        "summary": "Listar etapas (rounds) do torneio",
+        "tags": ["Rounds"],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por grupo: F ou M",
+            "schema": { "type": "string", "enum": ["F", "M"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de etapas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Round" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tournaments/{slug}/standings/{group}": {
+      "get": {
+        "summary": "Classificação atual de um grupo",
+        "tags": ["Standings"],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } },
+          {
+            "name": "group",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "enum": ["F", "M"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista ordenada de standings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Standing" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tournaments/{slug}/standings/simulate": {
+      "post": {
+        "summary": "Simular o efeito de uma etapa no ranking",
+        "tags": ["Standings"],
+        "parameters": [
+          { "name": "slug", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SimulationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ranking simulado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/SimulatedStanding" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string" }
+        },
+        "required": ["email", "password"]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "user": { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "user": { "$ref": "#/components/schemas/User" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
+        }
+      },
+      "Tournament": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "year": { "type": "integer" },
+          "totalRounds": { "type": "integer" },
+          "status": { "type": "string", "example": "ACTIVE" }
+        }
+      },
+      "TournamentWithStats": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Tournament" },
+          {
+            "type": "object",
+            "properties": {
+              "participantCount": { "type": "integer" },
+              "completedRounds": { "type": "integer" }
+            }
+          }
+        ]
+      },
+      "Participant": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "group": { "type": "string", "enum": ["F", "M"] },
+          "active": { "type": "boolean" },
+          "birthYear": { "type": "integer", "nullable": true }
+        }
+      },
+      "Round": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "number": { "type": "integer" },
+          "date": { "type": "string", "format": "date" },
+          "status": {
+            "type": "string",
+            "enum": ["SCHEDULED", "COMPLETED", "CANCELLED"]
+          },
+          "group": { "type": "string", "enum": ["F", "M"] }
+        }
+      },
+      "Standing": {
+        "type": "object",
+        "properties": {
+          "position": { "type": "integer" },
+          "participantId": { "type": "string", "format": "uuid" },
+          "name": { "type": "string" },
+          "group": { "type": "string", "enum": ["F", "M"] },
+          "pointsValid": { "type": "integer" },
+          "pointsRaw": { "type": "integer" },
+          "pointsDiscard": { "type": "integer" },
+          "pointsBonus": { "type": "integer" },
+          "pointsPenalty": { "type": "integer" },
+          "roundsPlayed": { "type": "integer" }
+        }
+      },
+      "SimulationRequest": {
+        "type": "object",
+        "properties": {
+          "group": { "type": "string", "enum": ["F", "M"] },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "participantId": { "type": "string" },
+                "present": { "type": "boolean" },
+                "absentReason": {
+                  "type": "string",
+                  "enum": ["NONE", "FALTA", "SORTEIO", "SORTEIO_VOLUNTARIA"]
+                },
+                "position": { "type": "integer", "nullable": true }
+              },
+              "required": ["participantId"]
+            }
+          }
+        },
+        "required": ["group", "results"]
+      },
+      "SimulatedStanding": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Standing" },
+          {
+            "type": "object",
+            "properties": {
+              "oldPosition": { "type": "integer", "nullable": true },
+              "positionDelta": { "type": "integer" },
+              "oldPointsValid": { "type": "integer", "nullable": true }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+

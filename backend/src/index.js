@@ -33,6 +33,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API docs (OpenAPI 3) em JSON
+app.get('/api/docs', (req, res) => {
+  const specPath = path.join(__dirname, '../openapi.json');
+  res.sendFile(specPath);
+});
+
 // Em produção, servir o frontend (build do Vite) e fallback SPA para o React Router
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../../frontend/dist');
