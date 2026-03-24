@@ -118,21 +118,24 @@ export default function Home() {
           <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
             {`Última etapa — ${lastRoundPodium.roundNumber}ª (${new Date(lastRoundPodium.date + 'T12:00:00').toLocaleDateString('pt-BR')})`}
           </p>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {lastRoundPodium.courts.map(({ courtLabel, positions }) => (
               <div key={courtLabel}>
                 {lastRoundPodium.courts.length > 1 && (
                   <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">{courtLabel}</p>
                 )}
-                <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                <div className="grid grid-cols-3 gap-x-3 text-sm">
                   {[1, 2, 3].map((pos) => {
                     const pairs = positions[pos] || [];
                     const emoji = { 1: '🥇', 2: '🥈', 3: '🥉' }[pos];
-                    if (pairs.length === 0) return null;
                     return (
                       <span key={pos} className="text-neutral-700">
-                        <strong className="text-neutral-900">{emoji} {pos}º:</strong>{' '}
-                        {pairs.map((p) => p.names.join(' e ')).join(' · ')}
+                        {pairs.length > 0 ? (
+                          <>
+                            <strong className="text-neutral-900">{emoji} {pos}º:</strong>{' '}
+                            {pairs.map((p) => p.names.join(' e ')).join(' · ')}
+                          </>
+                        ) : null}
                       </span>
                     );
                   })}
