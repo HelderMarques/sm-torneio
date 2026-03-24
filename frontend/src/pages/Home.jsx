@@ -35,28 +35,32 @@ export default function Home() {
             .then((roundRes) => {
               const round = roundRes.data;
               const results = (round.results || []).filter((r) => r.present && r.position);
-              // Group by position, then by pairId; track courtLabel
-              const byPos = { 1: [], 2: [], 3: [] };
+              // Build courts map: { courtLabel -> { position -> [pairEntry] } }
+              const courtsMap = {};
               results.forEach((r) => {
-                if (r.position >= 1 && r.position <= 3) {
-                  const name = r.participant?.name || '';
-                  if (!name) return;
-                  if (r.pairId) {
-                    const existing = byPos[r.position].find((p) => p.pairId === r.pairId);
-                    if (existing) {
-                      existing.names.push(name);
-                    } else {
-                      byPos[r.position].push({ pairId: r.pairId, names: [name], courtLabel: r.courtLabel || null });
-                    }
-                  } else {
-                    byPos[r.position].push({ pairId: null, names: [name], courtLabel: r.courtLabel || null });
-                  }
+                const court = r.courtLabel || '—';
+                if (!courtsMap[court]) courtsMap[court] = {};
+                const pos = r.position;
+                if (!courtsMap[court][pos]) courtsMap[court][pos] = [];
+                const name = r.participant?.name || '';
+                if (!name) return;
+                if (r.pairId) {
+                  const existing = courtsMap[court][pos].find((p) => p.pairId === r.pairId);
+                  if (existing) existing.names.push(name);
+                  else courtsMap[court][pos].push({ pairId: r.pairId, names: [name] });
+                } else {
+                  courtsMap[court][pos].push({ pairId: null, names: [name] });
                 }
               });
+              // Convert to sorted array of courts
+              const courts = Object.entries(courtsMap).map(([courtLabel, positions]) => ({
+                courtLabel,
+                positions,
+              }));
               setLastRoundPodium({
                 roundNumber: round.number,
                 date: round.date,
-                positions: byPos,
+                courts,
               });
             })
             .catch(() => setLastRoundPodium(null));
@@ -93,34 +97,29 @@ export default function Home() {
         </div>
       )}
 
-      {/* Pódio da última etapa (após 1ª rodada) */}
+      {/* Pódio da última etapa — um box por quadra */}
       {lastRoundPodium && (
-        <div className="mb-6 p-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
-          <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
-            Última etapa — {lastRoundPodium.roundNumber}ª ({new Date(lastRoundPodium.date + 'T12:00:00').toLocaleDateString('pt-BR')})
-          </p>
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            {[1, 2, 3].map((pos) => {
-              const pairs = lastRoundPodium.positions[pos] || [];
-              const emoji = { 1: '🥇', 2: '🥈', 3: '🥉' }[pos];
-              if (pairs.length === 0) return null;
-              const hasCourts = pairs.some((p) => p.courtLabel);
-              return (
-                <span key={pos} className="text-neutral-700">
-                  <strong className="text-neutral-900">{emoji} {pos}º:</strong>{' '}
-                  {hasCourts
-                    ? pairs.map((p) => (
-                        <span key={p.pairId || p.names[0]}>
-                          <span className="text-neutral-400 text-xs">{p.courtLabel}: </span>
-                          {p.names.join(' e ')}
-                        </span>
-                      )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, <span key={`sep-${i}`} className="text-neutral-300 mx-1">|</span>, el], [])
-                    : pairs.map((p) => p.names.join(' e ')).join(' · ')
-                  }
-                </span>
-              );
-            })}
-          </div>
+        <div className="mb-6 flex flex-col gap-3">
+          {lastRoundPodium.courts.map(({ courtLabel, positions }) => (
+            <div key={courtLabel} className="p-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
+              <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+                Última etapa | {courtLabel} — {lastRoundPodium.roundNumber}ª ({new Date(lastRoundPodium.date + 'T12:00:00').toLocaleDateString('pt-BR')})
+              </p>
+              <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                {[1, 2, 3].map((pos) => {
+                  const pairs = positions[pos] || [];
+                  const emoji = { 1: '🥇', 2: '🥈', 3: '🥉' }[pos];
+                  if (pairs.length === 0) return null;
+                  return (
+                    <span key={pos} className="text-neutral-700">
+                      <strong className="text-neutral-900">{emoji} {pos}º:</strong>{' '}
+                      {pairs.map((p) => p.names.join(' e ')).join(' · ')}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
