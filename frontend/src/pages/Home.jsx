@@ -55,7 +55,8 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, [slug, group]);
 
-  const nextRound = rounds.find((r) => r.status === 'SCHEDULED');
+  const today = new Date().toISOString().slice(0, 10);
+  const nextRound = rounds.find((r) => r.status === 'SCHEDULED' && r.date >= today);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
