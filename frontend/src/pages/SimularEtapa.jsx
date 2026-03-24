@@ -9,23 +9,31 @@ const STATUS_OPTIONS = [
   { value: 'FALTA', label: 'Faltou' },
 ];
 
+const GROUPS = [
+  { key: 'F', label: 'Feminino' },
+  { key: 'M', label: 'Masculino' },
+];
+
 export default function SimularEtapa() {
   const { slug, tournament, tApi } = useTournament();
+  const [group, setGroup] = useState('F');
   const [participants, setParticipants] = useState([]);
   const [standings, setStandings] = useState([]);
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [selection, setSelection] = useState({}); // participantId -> { positionNaEtapa, status }
+  const [selection, setSelection] = useState({});
   const [simulation, setSimulation] = useState(null);
   const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
     setLoading(true);
+    setSelection({});
+    setSimulation(null);
     Promise.all([
-      tApi.get('/participants?group=F'),
-      tApi.get('/standings/F'),
-      tApi.get('/rounds?group=F'),
+      tApi.get(`/participants?group=${group}`),
+      tApi.get(`/standings/${group}`),
+      tApi.get(`/rounds?group=${group}`),
     ])
       .then(([pRes, sRes, rRes]) => {
         setParticipants(pRes.data || []);
@@ -37,7 +45,7 @@ export default function SimularEtapa() {
         setMessage('Erro ao carregar dados para simulação.');
       })
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, group]);
 
   const nextRound = useMemo(
     () => rounds.find((r) => r.status === 'SCHEDULED') || null,
@@ -101,7 +109,7 @@ export default function SimularEtapa() {
     setSimulating(true);
     try {
       const res = await tApi.post('/standings/simulate', {
-        group: 'F',
+        group,
         results,
       });
       setSimulation(res.data);
@@ -136,7 +144,7 @@ export default function SimularEtapa() {
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Simular etapa</h1>
           <p className="text-sm text-neutral-500 mt-1">
-            {tournament?.name} — grupo feminino — esta simulação não altera a pontuação real.
+            {tournament?.name} — esta simulação não altera a pontuação real.
           </p>
         </div>
         <Link
@@ -145,6 +153,23 @@ export default function SimularEtapa() {
         >
           ← Voltar para o torneio
         </Link>
+      </div>
+
+      <div className="flex gap-1 bg-neutral-100 rounded-lg p-1 w-fit mb-6">
+        {GROUPS.map((g) => (
+          <button
+            key={g.key}
+            type="button"
+            onClick={() => setGroup(g.key)}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              group === g.key
+                ? 'bg-white text-neutral-900 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-700'
+            }`}
+          >
+            {g.label}
+          </button>
+        ))}
       </div>
 
       {nextRound && (

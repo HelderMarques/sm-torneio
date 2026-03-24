@@ -3,17 +3,25 @@ import { Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
 import StandingsTable from '../components/StandingsTable';
 
+const GROUPS = [
+  { key: 'F', label: 'Feminino' },
+  { key: 'M', label: 'Masculino' },
+];
+
 export default function Home() {
   const { tournament, slug, tApi } = useTournament();
+  const [group, setGroup] = useState('F');
   const [standings, setStandings] = useState([]);
   const [rounds, setRounds] = useState([]);
-  const [lastRoundPodium, setLastRoundPodium] = useState(null); // { roundNumber, date, 1: [names], 2: [names], 3: [names] }
+  const [lastRoundPodium, setLastRoundPodium] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    setLastRoundPodium(null);
     Promise.all([
-      tApi.get('/standings/F'),
-      tApi.get('/rounds?group=F'),
+      tApi.get(`/standings/${group}`),
+      tApi.get(`/rounds?group=${group}`),
     ])
       .then(([standingsRes, roundsRes]) => {
         setStandings(standingsRes.data);
@@ -45,17 +53,9 @@ export default function Home() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, group]);
 
   const nextRound = rounds.find((r) => r.status === 'SCHEDULED');
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-200 border-t-neutral-500"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -104,10 +104,32 @@ export default function Home() {
 
       {/* Ranking completo em destaque */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-8">
-        <div className="p-5 border-b border-neutral-100">
+        <div className="p-5 border-b border-neutral-100 flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-lg font-semibold text-neutral-900">🎾 Classificação</h2>
+          <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
+            {GROUPS.map((g) => (
+              <button
+                key={g.key}
+                type="button"
+                onClick={() => setGroup(g.key)}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  group === g.key
+                    ? 'bg-white text-neutral-900 shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-700'
+                }`}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <StandingsTable standings={standings} showDetails={true} />
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-200 border-t-neutral-500" />
+          </div>
+        ) : (
+          <StandingsTable standings={standings} showDetails={true} />
+        )}
       </div>
 
       {/* Links de apoio */}

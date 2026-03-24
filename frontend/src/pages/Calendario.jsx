@@ -8,17 +8,24 @@ const statusMap = {
   CANCELLED: { label: 'Cancelada', color: 'bg-red-50 text-red-700' },
 };
 
+const GROUPS = [
+  { key: 'F', label: 'Feminino' },
+  { key: 'M', label: 'Masculino' },
+];
+
 export default function Calendario() {
   const { tournament, slug, tApi } = useTournament();
+  const [group, setGroup] = useState('F');
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    tApi.get('/rounds?group=F')
+    setLoading(true);
+    tApi.get(`/rounds?group=${group}`)
       .then((res) => setRounds(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, group]);
 
   if (loading) {
     return (
@@ -30,13 +37,36 @@ export default function Calendario() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
-      <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight mb-2">
-        Calendário — Temporada {tournament?.year}
-      </h1>
-      <p className="text-neutral-500 text-sm mb-8">{tournament?.totalRounds} etapas</p>
+      <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight mb-1">
+            Calendário — Temporada {tournament?.year}
+          </h1>
+          <p className="text-neutral-500 text-sm">{tournament?.totalRounds} etapas</p>
+        </div>
+        <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
+          {GROUPS.map((g) => (
+            <button
+              key={g.key}
+              type="button"
+              onClick={() => setGroup(g.key)}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                group === g.key
+                  ? 'bg-white text-neutral-900 shadow-sm'
+                  : 'text-neutral-500 hover:text-neutral-700'
+              }`}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
         <div className="divide-y divide-neutral-100">
+          {rounds.length === 0 && (
+            <p className="text-center text-neutral-500 py-12 text-sm">Nenhuma etapa agendada.</p>
+          )}
           {rounds.map((round) => {
             const status = statusMap[round.status];
             return (

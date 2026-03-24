@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
 import StandingsTable from '../components/StandingsTable';
 
@@ -9,11 +9,8 @@ export default function Classificacao() {
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  if (group === 'masculino') {
-    return <Navigate to={`/t/${slug}/classificacao/feminino`} replace />;
-  }
-
-  const groupKey = 'F';
+  const groupKey = group === 'masculino' ? 'M' : 'F';
+  const groupLabel = groupKey === 'M' ? 'Masculino' : 'Feminino';
 
   useEffect(() => {
     setLoading(true);
@@ -21,15 +18,35 @@ export default function Classificacao() {
       .then((res) => setStandings(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, groupKey]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
-          🎾 Classificação Geral
-        </h1>
-        <p className="text-neutral-500 text-sm mt-1">Temporada {tournament?.year}</p>
+      <div className="mb-8 flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
+            🎾 Classificação — {groupLabel}
+          </h1>
+          <p className="text-neutral-500 text-sm mt-1">Temporada {tournament?.year}</p>
+        </div>
+        <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
+          <Link
+            to={`/t/${slug}/classificacao/feminino`}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+              groupKey === 'F' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+            }`}
+          >
+            Feminino
+          </Link>
+          <Link
+            to={`/t/${slug}/classificacao/masculino`}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+              groupKey === 'M' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+            }`}
+          >
+            Masculino
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
