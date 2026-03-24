@@ -35,7 +35,7 @@ export default function Home() {
             .then((roundRes) => {
               const round = roundRes.data;
               const results = (round.results || []).filter((r) => r.present && r.position);
-              // Group by position, then by pairId (or individual if no pairId)
+              // Group by position, then by pairId; track courtLabel
               const byPos = { 1: [], 2: [], 3: [] };
               results.forEach((r) => {
                 if (r.position >= 1 && r.position <= 3) {
@@ -46,10 +46,10 @@ export default function Home() {
                     if (existing) {
                       existing.names.push(name);
                     } else {
-                      byPos[r.position].push({ pairId: r.pairId, names: [name] });
+                      byPos[r.position].push({ pairId: r.pairId, names: [name], courtLabel: r.courtLabel || null });
                     }
                   } else {
-                    byPos[r.position].push({ pairId: null, names: [name] });
+                    byPos[r.position].push({ pairId: null, names: [name], courtLabel: r.courtLabel || null });
                   }
                 }
               });
@@ -104,10 +104,19 @@ export default function Home() {
               const pairs = lastRoundPodium.positions[pos] || [];
               const emoji = { 1: '🥇', 2: '🥈', 3: '🥉' }[pos];
               if (pairs.length === 0) return null;
+              const hasCourts = pairs.some((p) => p.courtLabel);
               return (
                 <span key={pos} className="text-neutral-700">
                   <strong className="text-neutral-900">{emoji} {pos}º:</strong>{' '}
-                  {pairs.map((p) => p.names.join(' e ')).join(' · ')}
+                  {hasCourts
+                    ? pairs.map((p) => (
+                        <span key={p.pairId || p.names[0]}>
+                          <span className="text-neutral-400 text-xs">{p.courtLabel}: </span>
+                          {p.names.join(' e ')}
+                        </span>
+                      )).reduce((acc, el, i) => i === 0 ? [el] : [...acc, <span key={`sep-${i}`} className="text-neutral-300 mx-1">|</span>, el], [])
+                    : pairs.map((p) => p.names.join(' e ')).join(' · ')
+                  }
                 </span>
               );
             })}

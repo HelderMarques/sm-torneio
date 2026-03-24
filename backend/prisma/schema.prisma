@@ -78,7 +78,8 @@ model RoundResult {
   setsLost       Int     @default(0) @map("sets_lost")
   gamesWon       Int     @default(0) @map("games_won")
   gamesLost      Int     @default(0) @map("games_lost")
-  pairId         String? @map("pair_id") // UUID partilhado pelas 2 pessoas da dupla na mesma etapa
+  pairId         String? @map("pair_id")    // UUID partilhado pelas 2 pessoas da dupla na mesma etapa
+  courtLabel     String? @map("court_label") // ex: "Quadra 4", "Quadra 5", "Estádio 8"
 
   round       Round       @relation(fields: [roundId], references: [id], onDelete: Cascade)
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)

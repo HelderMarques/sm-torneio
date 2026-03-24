@@ -139,6 +139,7 @@ router.post('/:id/results', authMiddleware, async (req, res) => {
           gamesWon: r.gamesWon || 0,
           gamesLost: r.gamesLost || 0,
           pairId: r.pairId || null,
+          courtLabel: r.courtLabel || null,
         },
       });
       created.push(result);
@@ -167,7 +168,7 @@ router.put('/:id/results/:participantId', authMiddleware, async (req, res) => {
     const data = {};
     const fields = [
       'position', 'present', 'absentReason', 'uniformPenalty',
-      'setsWon', 'setsLost', 'gamesWon', 'gamesLost', 'pairId',
+      'setsWon', 'setsLost', 'gamesWon', 'gamesLost', 'pairId', 'courtLabel',
     ];
 
     for (const field of fields) {

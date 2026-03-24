@@ -26,6 +26,7 @@ export default function EtapaDetail() {
   const [participants, setParticipants] = useState([]);
   const [results, setResults] = useState({});
   const [pairs, setPairs] = useState({}); // { participantId: partnerId }
+  const [courtLabels, setCourtLabels] = useState({}); // { participantId: courtLabel }
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -87,6 +88,15 @@ export default function EtapaDetail() {
         }
       }
       setPairs(pairsMap);
+
+      // Build participantId -> courtLabel map
+      const courtMap = {};
+      if (roundData.results) {
+        for (const r of roundData.results) {
+          if (r.courtLabel) courtMap[r.participantId] = r.courtLabel;
+        }
+      }
+      setCourtLabels(courtMap);
     }).catch(console.error)
       .finally(() => setLoading(false));
   }, [id, slug]);
@@ -96,6 +106,15 @@ export default function EtapaDetail() {
       ...prev,
       [participantId]: { ...prev[participantId], [field]: value },
     }));
+  };
+
+  const setCourtLabel = (participantId, label) => {
+    const partnerId = pairs[participantId];
+    setCourtLabels((prev) => {
+      const next = { ...prev, [participantId]: label || null };
+      if (partnerId) next[partnerId] = label || null;
+      return next;
+    });
   };
 
   const setPartner = (participantId, partnerId) => {
@@ -147,6 +166,7 @@ export default function EtapaDetail() {
           gamesLost: r.present ? (r.gamesLost || 0) : 0,
           uniformPenalty: r.uniformPenalty || 0,
           pairId: pairIds[p.id] || null,
+          courtLabel: courtLabels[p.id] || null,
         };
       });
 
@@ -310,14 +330,15 @@ export default function EtapaDetail() {
           {presentParticipants.map((p) => {
             const partnerId = pairs[p.id] || '';
             const partner = participants.find((x) => x.id === partnerId);
+            const court = courtLabels[p.id] || '';
             return (
-              <div key={p.id} className="px-5 py-3 flex items-center gap-4">
-                <span className="w-40 font-medium text-neutral-900 text-sm truncate">{p.name}</span>
+              <div key={p.id} className="px-5 py-3 flex items-center gap-4 flex-wrap">
+                <span className="w-36 font-medium text-neutral-900 text-sm truncate">{p.name}</span>
                 <span className="text-neutral-400 text-xs">+</span>
                 <select
                   value={partnerId}
                   onChange={(e) => setPartner(p.id, e.target.value || null)}
-                  className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] flex-1 max-w-xs"
+                  className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] w-44"
                 >
                   <option value="">— sem parceiro —</option>
                   {presentParticipants
@@ -326,9 +347,16 @@ export default function EtapaDetail() {
                       <option key={x.id} value={x.id}>{x.name}</option>
                     ))}
                 </select>
+                <input
+                  type="text"
+                  placeholder="Quadra (ex: Quadra 5)"
+                  value={court}
+                  onChange={(e) => setCourtLabel(p.id, e.target.value)}
+                  className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] w-44"
+                />
                 {partner && (
                   <span className="text-xs text-emerald-600 font-medium">
-                    ✓ Dupla: {p.name} + {partner.name}
+                    ✓ {p.name} + {partner.name}{court ? ` — ${court}` : ''}
                   </span>
                 )}
               </div>
