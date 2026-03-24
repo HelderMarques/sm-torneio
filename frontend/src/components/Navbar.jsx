@@ -33,7 +33,7 @@ export default function Navbar() {
           {/* Desktop menu */}
           <div className="hidden md:flex items-center gap-8">
             <Link to={base} className={isActive(base)}>Início</Link>
-            <Link to={`${base}/calendario`} className={isActive(`${base}/calendario`)}>Calendário</Link>
+            <Link to={`${base}/calendario`} className={isActive(`${base}/calendario`)}>Etapas</Link>
             <Link
               to={`/admin/t/${slug}`}
               className="bg-[#9B2D3E] hover:bg-[#8B2942] text-white px-4 py-2 rounded-lg text-sm font-medium"
@@ -61,7 +61,7 @@ export default function Navbar() {
         {menuOpen && (
           <div className="md:hidden pb-4 pt-2 border-t border-neutral-100 space-y-1">
             <Link to={base} className={`block py-2.5 px-2 rounded-lg ${isActive(base)}`} onClick={() => setMenuOpen(false)}>Início</Link>
-            <Link to={`${base}/calendario`} className={`block py-2.5 px-2 rounded-lg ${isActive(`${base}/calendario`)}`} onClick={() => setMenuOpen(false)}>Calendário</Link>
+            <Link to={`${base}/calendario`} className={`block py-2.5 px-2 rounded-lg ${isActive(`${base}/calendario`)}`} onClick={() => setMenuOpen(false)}>Etapas</Link>
             <Link to={`/admin/t/${slug}`} className="block py-2.5 px-2 text-[#9B2D3E] font-medium rounded-lg" onClick={() => setMenuOpen(false)}>Admin</Link>
           </div>
         )}

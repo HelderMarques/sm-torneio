@@ -101,12 +101,13 @@ router.put('/:slug', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Torneio não encontrado' });
     }
 
-    const { name, year, totalRounds, status } = req.body;
+    const { name, year, totalRounds, status, simulateEnabled } = req.body;
     const data = {};
     if (name !== undefined) data.name = name.trim();
     if (year !== undefined) data.year = Number(year);
     if (totalRounds !== undefined) data.totalRounds = Number(totalRounds);
     if (status !== undefined) data.status = status;
+    if (simulateEnabled !== undefined) data.simulateEnabled = Boolean(simulateEnabled);
 
     const updated = await prisma.tournament.update({
       where: { slug: req.params.slug },

@@ -102,6 +102,22 @@ export default function StandingsTable({ standings, showDetails = true }) {
           ))}
         </tbody>
       </table>
+      {showDetails && (
+        <div className="px-4 py-3 border-t border-neutral-100 bg-neutral-50/50 text-xs text-neutral-400 flex flex-wrap gap-x-4 gap-y-1">
+          <span><strong className="text-neutral-500">PTS</strong> Pontuação válida</span>
+          <span><strong className="text-neutral-500">Ganhos</strong> Pontuação bruta</span>
+          <span><strong className="text-neutral-500">Perd.</strong> Penalidade de uniforme</span>
+          <span><strong className="text-neutral-500">Desc.</strong> Descarte</span>
+          <span><strong className="text-neutral-500">Part.</strong> Partidas realizadas</span>
+          <span><strong className="text-neutral-500">1º–7º</strong> Colocações por etapa</span>
+          <span><strong className="text-neutral-500">SV</strong> Sets Vencidos</span>
+          <span><strong className="text-neutral-500">SP</strong> Sets Perdidos</span>
+          <span><strong className="text-neutral-500">SS</strong> Saldo de Sets</span>
+          <span><strong className="text-neutral-500">GV</strong> Games Vencidos</span>
+          <span><strong className="text-neutral-500">GP</strong> Games Perdidos</span>
+          <span><strong className="text-neutral-500">SG</strong> Saldo de Games</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -92,6 +92,35 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* Feature flags */}
+      <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-8">
+        <div className="p-5 border-b border-neutral-100 bg-neutral-50/50">
+          <h2 className="font-semibold text-neutral-900">Funcionalidades</h2>
+        </div>
+        <div className="p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-neutral-900 text-sm">Simular etapa</p>
+              <p className="text-xs text-neutral-500 mt-0.5">Exibe o botão "Simular etapa" na página inicial</p>
+            </div>
+            <button
+              onClick={async () => {
+                const token = localStorage.getItem('token');
+                await fetch(`/api/tournaments/${slug}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ simulateEnabled: !tournament?.simulateEnabled }),
+                });
+                window.location.reload();
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${tournament?.simulateEnabled ? 'bg-[#9B2D3E]' : 'bg-neutral-200'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${tournament?.simulateEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Recent rounds */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
         <div className="p-5 border-b border-neutral-100 bg-neutral-50/50">

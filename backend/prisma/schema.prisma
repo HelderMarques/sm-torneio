@@ -22,9 +22,10 @@ model Tournament {
   name        String
   slug        String   @unique
   year        Int
-  totalRounds Int      @default(9) @map("total_rounds")
-  status      String   @default("ACTIVE") // ACTIVE | ARCHIVED
-  createdAt   DateTime @default(now()) @map("created_at")
+  totalRounds      Int      @default(9) @map("total_rounds")
+  status           String   @default("ACTIVE") // ACTIVE | ARCHIVED
+  simulateEnabled  Boolean  @default(false) @map("simulate_enabled")
+  createdAt        DateTime @default(now()) @map("created_at")
 
   participants Participant[]
   rounds       Round[]
