@@ -144,18 +144,20 @@ export default function EtapaPublic() {
               {courtMatches.length > 0 && (
                 <div className="px-5 py-4 border-t border-neutral-100">
                   <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">Jogos</p>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {courtMatches.map((m, i) => {
                       const aWon = m.scoreA > m.scoreB;
                       return (
-                        <div key={m.id || i} className="flex items-center gap-2 text-sm">
-                          <span className={`font-medium ${aWon ? 'text-neutral-900' : 'text-neutral-500'}`}>
+                        <div key={m.id || i} className="grid text-sm" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
+                          <span className={`font-medium text-right pr-2 ${aWon ? 'text-neutral-900' : 'text-neutral-400'}`}>
                             {m.pairANames.join(' / ')}
                           </span>
-                          <span className={`font-bold tabular-nums ${aWon ? 'text-emerald-600' : 'text-red-500'}`}>{m.scoreA}</span>
-                          <span className="text-neutral-300 text-xs">×</span>
-                          <span className={`font-bold tabular-nums ${!aWon ? 'text-emerald-600' : 'text-red-500'}`}>{m.scoreB}</span>
-                          <span className={`font-medium ${!aWon ? 'text-neutral-900' : 'text-neutral-500'}`}>
+                          <span className="flex items-center gap-1 tabular-nums font-bold">
+                            <span className={aWon ? 'text-emerald-600' : 'text-red-500'}>{m.scoreA}</span>
+                            <span className="text-neutral-300 text-xs font-normal">×</span>
+                            <span className={!aWon ? 'text-emerald-600' : 'text-red-500'}>{m.scoreB}</span>
+                          </span>
+                          <span className={`font-medium pl-2 ${!aWon ? 'text-neutral-900' : 'text-neutral-400'}`}>
                             {m.pairBNames.join(' / ')}
                           </span>
                         </div>
