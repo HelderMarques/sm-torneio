@@ -35,11 +35,22 @@ export default function Home() {
             .then((roundRes) => {
               const round = roundRes.data;
               const results = (round.results || []).filter((r) => r.present && r.position);
+              // Group by position, then by pairId (or individual if no pairId)
               const byPos = { 1: [], 2: [], 3: [] };
               results.forEach((r) => {
                 if (r.position >= 1 && r.position <= 3) {
                   const name = r.participant?.name || '';
-                  if (name) byPos[r.position].push(name);
+                  if (!name) return;
+                  if (r.pairId) {
+                    const existing = byPos[r.position].find((p) => p.pairId === r.pairId);
+                    if (existing) {
+                      existing.names.push(name);
+                    } else {
+                      byPos[r.position].push({ pairId: r.pairId, names: [name] });
+                    }
+                  } else {
+                    byPos[r.position].push({ pairId: null, names: [name] });
+                  }
                 }
               });
               setLastRoundPodium({
@@ -90,12 +101,13 @@ export default function Home() {
           </p>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
             {[1, 2, 3].map((pos) => {
-              const names = lastRoundPodium.positions[pos] || [];
+              const pairs = lastRoundPodium.positions[pos] || [];
               const emoji = { 1: '🥇', 2: '🥈', 3: '🥉' }[pos];
-              if (names.length === 0) return null;
+              if (pairs.length === 0) return null;
               return (
                 <span key={pos} className="text-neutral-700">
-                  <strong className="text-neutral-900">{emoji} {pos}º:</strong> {names.join(' e ')}
+                  <strong className="text-neutral-900">{emoji} {pos}º:</strong>{' '}
+                  {pairs.map((p) => p.names.join(' e ')).join(' · ')}
                 </span>
               );
             })}

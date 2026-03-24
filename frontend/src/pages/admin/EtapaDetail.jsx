@@ -12,8 +12,12 @@ const POSITIONS = [
   { value: 7, label: '7º — 30 pts' },
 ];
 
-/** Torneio de duplas: 2 vagas por colocação (1º a 7º) */
-const SLOTS_PER_POSITION = 2;
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
 
 export default function EtapaDetail() {
   const { id } = useParams();
@@ -21,6 +25,7 @@ export default function EtapaDetail() {
   const [round, setRound] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [results, setResults] = useState({});
+  const [pairs, setPairs] = useState({}); // { participantId: partnerId }
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -39,6 +44,8 @@ export default function EtapaDetail() {
       setParticipants(groupParticipants);
 
       const existingResults = {};
+      const pairMap = {}; // pairId -> [participantId, ...]
+
       if (roundData.results) {
         for (const r of roundData.results) {
           existingResults[r.participantId] = {
@@ -51,6 +58,10 @@ export default function EtapaDetail() {
             gamesLost: r.gamesLost,
             uniformPenalty: r.uniformPenalty,
           };
+          if (r.pairId) {
+            if (!pairMap[r.pairId]) pairMap[r.pairId] = [];
+            pairMap[r.pairId].push(r.participantId);
+          }
         }
       }
 
@@ -60,15 +71,22 @@ export default function EtapaDetail() {
             present: true,
             absentReason: 'NONE',
             position: null,
-            setsWon: 0,
-            setsLost: 0,
-            gamesWon: 0,
-            gamesLost: 0,
+            setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0,
             uniformPenalty: 0,
           };
         }
       }
       setResults(existingResults);
+
+      // Build participantId -> partnerId map
+      const pairsMap = {};
+      for (const ids of Object.values(pairMap)) {
+        if (ids.length === 2) {
+          pairsMap[ids[0]] = ids[1];
+          pairsMap[ids[1]] = ids[0];
+        }
+      }
+      setPairs(pairsMap);
     }).catch(console.error)
       .finally(() => setLoading(false));
   }, [id, slug]);
@@ -80,25 +98,22 @@ export default function EtapaDetail() {
     }));
   };
 
-  // Conta quantas participantes presentes estão em cada colocação (para duplas: máx 2 por posição)
-  const countByPosition = () => {
-    const count = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
-    participants.forEach((p) => {
-      const r = results[p.id] || {};
-      if (r.present && r.position && count[r.position] !== undefined) {
-        count[r.position]++;
+  const setPartner = (participantId, partnerId) => {
+    setPairs((prev) => {
+      const next = { ...prev };
+      // Clear old partner of this participant
+      const oldPartner = next[participantId];
+      if (oldPartner) delete next[oldPartner];
+      // Clear old partner of new partner
+      if (partnerId) {
+        const oldOfNew = next[partnerId];
+        if (oldOfNew) delete next[oldOfNew];
+        next[participantId] = partnerId;
+        next[partnerId] = participantId;
+      } else {
+        delete next[participantId];
       }
-    });
-    return count;
-  };
-
-  // Para uma participante, quais colocações ainda aparecem no select (2 vagas por posição)
-  const getAvailablePositionsFor = (participantId, currentPosition) => {
-    const count = countByPosition();
-    return POSITIONS.filter((pos) => {
-      const used = count[pos.value] || 0;
-      const isCurrent = currentPosition === pos.value;
-      return isCurrent || used < SLOTS_PER_POSITION;
+      return next;
     });
   };
 
@@ -106,6 +121,19 @@ export default function EtapaDetail() {
     setSaving(true);
     setMessage('');
     try {
+      // Build shared pairIds for each pair
+      const pairIds = {};
+      const processed = new Set();
+      for (const [pid, partnerId] of Object.entries(pairs)) {
+        if (!processed.has(pid)) {
+          const sharedId = generateUUID();
+          pairIds[pid] = sharedId;
+          pairIds[partnerId] = sharedId;
+          processed.add(pid);
+          processed.add(partnerId);
+        }
+      }
+
       const payload = participants.map((p) => {
         const r = results[p.id];
         return {
@@ -118,6 +146,7 @@ export default function EtapaDetail() {
           gamesWon: r.present ? (r.gamesWon || 0) : 0,
           gamesLost: r.present ? (r.gamesLost || 0) : 0,
           uniformPenalty: r.uniformPenalty || 0,
+          pairId: pairIds[p.id] || null,
         };
       });
 
@@ -142,6 +171,8 @@ export default function EtapaDetail() {
   if (!round) {
     return <div className="text-center py-20 text-neutral-500">Etapa não encontrada</div>;
   }
+
+  const presentParticipants = participants.filter((p) => results[p.id]?.present);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -170,123 +201,140 @@ export default function EtapaDetail() {
         </div>
       )}
 
-      <p className="text-neutral-500 text-sm mb-4">
-        Torneio de duplas: cada colocação (1º a 7º) tem 2 vagas. As opções já preenchidas somem do seletor.
-      </p>
-
-      <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="bg-neutral-50 border-b border-neutral-200">
-              <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Participante</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Presença</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Colocação</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Sets V</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Sets P</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Games V</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Games P</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Uniforme</th>
-            </tr>
-          </thead>
-          <tbody>
-            {participants.map((p) => {
-              const r = results[p.id] || {};
-              return (
-                <tr key={p.id} className="border-b border-neutral-100 hover:bg-neutral-50/50">
-                  <td className="px-4 py-3 font-medium text-neutral-900">{p.name}</td>
-                  <td className="px-4 py-3 text-center">
-                    <select
-                      value={r.present ? 'PRESENT' : r.absentReason}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === 'PRESENT') {
-                          updateResult(p.id, 'present', true);
-                          updateResult(p.id, 'absentReason', 'NONE');
-                        } else {
-                          updateResult(p.id, 'present', false);
-                          updateResult(p.id, 'absentReason', val);
-                        }
-                      }}
-                      className="border border-neutral-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
-                    >
-                      <option value="PRESENT">Presente</option>
-                      <option value="FALTA">Faltou</option>
-                      <option value="SORTEIO">Sorteada (80pts)</option>
-                      <option value="SORTEIO_VOLUNTARIA">Voluntária (60pts)</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {r.present ? (
+      {/* Tabela de resultados */}
+      <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-6">
+        <div className="px-5 py-4 border-b border-neutral-100">
+          <h2 className="font-semibold text-neutral-900">Resultados</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">Defina a presença, colocação e estatísticas de cada participante.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="bg-neutral-50 border-b border-neutral-200">
+                <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Participante</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Presença</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Colocação</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Sets V</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Sets P</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Games V</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Games P</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Uniforme</th>
+              </tr>
+            </thead>
+            <tbody>
+              {participants.map((p) => {
+                const r = results[p.id] || {};
+                return (
+                  <tr key={p.id} className="border-b border-neutral-100 hover:bg-neutral-50/50">
+                    <td className="px-4 py-3 font-medium text-neutral-900">{p.name}</td>
+                    <td className="px-4 py-3 text-center">
                       <select
-                        value={r.position || ''}
-                        onChange={(e) => updateResult(p.id, 'position', Number(e.target.value) || null)}
+                        value={r.present ? 'PRESENT' : r.absentReason}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === 'PRESENT') {
+                            updateResult(p.id, 'present', true);
+                            updateResult(p.id, 'absentReason', 'NONE');
+                          } else {
+                            updateResult(p.id, 'present', false);
+                            updateResult(p.id, 'absentReason', val);
+                          }
+                        }}
                         className="border border-neutral-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
                       >
-                        <option value="">—</option>
-                        {getAvailablePositionsFor(p.id, r.position || null).map((pos) => (
-                          <option key={pos.value} value={pos.value}>{pos.label}</option>
-                        ))}
+                        <option value="PRESENT">Presente</option>
+                        <option value="FALTA">Faltou</option>
+                        <option value="SORTEIO">Sorteado (80pts)</option>
+                        <option value="SORTEIO_VOLUNTARIA">Voluntário (60pts)</option>
                       </select>
-                    ) : (
-                      <span className="text-neutral-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {r.present ? (
-                      <input
-                        type="number" min="0" max="20"
-                        value={r.setsWon || 0}
-                        onChange={(e) => updateResult(p.id, 'setsWon', Number(e.target.value))}
-                        className="border border-neutral-200 rounded-lg w-14 text-center px-1 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
-                      />
-                    ) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {r.present ? (
-                      <input
-                        type="number" min="0" max="20"
-                        value={r.setsLost || 0}
-                        onChange={(e) => updateResult(p.id, 'setsLost', Number(e.target.value))}
-                        className="border border-neutral-200 rounded-lg w-14 text-center px-1 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
-                      />
-                    ) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {r.present ? (
-                      <input
-                        type="number" min="0" max="100"
-                        value={r.gamesWon || 0}
-                        onChange={(e) => updateResult(p.id, 'gamesWon', Number(e.target.value))}
-                        className="border border-neutral-200 rounded-lg w-14 text-center px-1 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
-                      />
-                    ) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {r.present ? (
-                      <input
-                        type="number" min="0" max="100"
-                        value={r.gamesLost || 0}
-                        onChange={(e) => updateResult(p.id, 'gamesLost', Number(e.target.value))}
-                        className="border border-neutral-200 rounded-lg w-14 text-center px-1 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
-                      />
-                    ) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <label className="flex items-center justify-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={r.uniformPenalty < 0}
-                        onChange={(e) => updateResult(p.id, 'uniformPenalty', e.target.checked ? -20 : 0)}
-                        className="rounded border-neutral-300 text-[#9B2D3E] focus:ring-[#9B2D3E]"
-                      />
-                      <span className="text-xs text-red-600 font-medium">-20</span>
-                    </label>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {r.present ? (
+                        <select
+                          value={r.position || ''}
+                          onChange={(e) => updateResult(p.id, 'position', Number(e.target.value) || null)}
+                          className="border border-neutral-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
+                        >
+                          <option value="">—</option>
+                          {POSITIONS.map((pos) => (
+                            <option key={pos.value} value={pos.value}>{pos.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-neutral-400">—</span>
+                      )}
+                    </td>
+                    {['setsWon', 'setsLost', 'gamesWon', 'gamesLost'].map((field) => (
+                      <td key={field} className="px-4 py-3 text-center">
+                        {r.present ? (
+                          <input
+                            type="number" min="0" max="100"
+                            value={r[field] || 0}
+                            onChange={(e) => updateResult(p.id, field, Number(e.target.value))}
+                            className="border border-neutral-200 rounded-lg w-14 text-center px-1 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
+                          />
+                        ) : '—'}
+                      </td>
+                    ))}
+                    <td className="px-4 py-3 text-center">
+                      <label className="flex items-center justify-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={r.uniformPenalty < 0}
+                          onChange={(e) => updateResult(p.id, 'uniformPenalty', e.target.checked ? -20 : 0)}
+                          className="rounded border-neutral-300 text-[#9B2D3E] focus:ring-[#9B2D3E]"
+                        />
+                        <span className="text-xs text-red-600 font-medium">-20</span>
+                      </label>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Definição de duplas */}
+      <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
+        <div className="px-5 py-4 border-b border-neutral-100">
+          <h2 className="font-semibold text-neutral-900">Duplas</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Associe cada participante ao seu parceiro de dupla. Afecta o pódio da última etapa.
+          </p>
+        </div>
+        <div className="divide-y divide-neutral-100">
+          {presentParticipants.length === 0 && (
+            <p className="px-5 py-8 text-sm text-neutral-500 text-center">Nenhum participante presente.</p>
+          )}
+          {presentParticipants.map((p) => {
+            const partnerId = pairs[p.id] || '';
+            const partner = participants.find((x) => x.id === partnerId);
+            return (
+              <div key={p.id} className="px-5 py-3 flex items-center gap-4">
+                <span className="w-40 font-medium text-neutral-900 text-sm truncate">{p.name}</span>
+                <span className="text-neutral-400 text-xs">+</span>
+                <select
+                  value={partnerId}
+                  onChange={(e) => setPartner(p.id, e.target.value || null)}
+                  className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] flex-1 max-w-xs"
+                >
+                  <option value="">— sem parceiro —</option>
+                  {presentParticipants
+                    .filter((x) => x.id !== p.id)
+                    .map((x) => (
+                      <option key={x.id} value={x.id}>{x.name}</option>
+                    ))}
+                </select>
+                {partner && (
+                  <span className="text-xs text-emerald-600 font-medium">
+                    ✓ Dupla: {p.name} + {partner.name}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
