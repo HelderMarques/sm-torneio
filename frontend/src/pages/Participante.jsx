@@ -130,6 +130,7 @@ export default function Participante() {
   const [participant, setParticipant] = useState(null);
   const [history, setHistory] = useState([]);
   const [standings, setStandings] = useState([]);
+  const [matchHistory, setMatchHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -142,11 +143,13 @@ export default function Participante() {
         return Promise.all([
           tApi.get(`/participants/${id}/history`),
           tApi.get(`/standings/${p.group}`),
+          tApi.get(`/participants/${id}/matches`),
         ]);
       })
-      .then(([hRes, sRes]) => {
+      .then(([hRes, sRes, mRes]) => {
         setHistory(hRes.data || []);
         setStandings(sRes.data || []);
+        setMatchHistory(mRes.data || []);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -518,7 +521,63 @@ export default function Participante() {
         )}
       </div>
 
-      {/* ── 6. ESTATÍSTICAS DETALHADAS ────────────────────────── */}
+      {/* ── 6. HISTÓRICO DE JOGOS ─────────────────────────────── */}
+      {matchHistory.length > 0 && (
+        <div className="bg-white rounded-2xl border border-neutral-200/80 mb-5 overflow-hidden">
+          <div className="px-5 pt-5 pb-3 border-b border-neutral-100">
+            <h2 className="font-semibold text-neutral-900">Histórico de Jogos</h2>
+            <p className="text-xs text-neutral-400 mt-0.5">Jogos individuais · mais recente primeiro</p>
+          </div>
+          <div className="divide-y divide-neutral-100">
+            {matchHistory.map((m) => (
+              <div
+                key={m.id}
+                className={`flex items-center gap-3 px-5 py-3.5 transition-colors ${
+                  m.won ? 'bg-emerald-50/40 hover:bg-emerald-50/60' : 'bg-red-50/30 hover:bg-red-50/50'
+                }`}
+              >
+                {/* Win/Loss badge */}
+                <div
+                  className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                    m.won ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+                  }`}
+                >
+                  {m.won ? 'V' : 'D'}
+                </div>
+
+                {/* Opponent + partner */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-neutral-800 truncate">
+                    vs. {m.opponentNames.join(' / ')}
+                  </p>
+                  {m.partnerName && (
+                    <p className="text-xs text-neutral-400 truncate">
+                      Parceiro: {m.partnerName}
+                    </p>
+                  )}
+                </div>
+
+                {/* Score */}
+                <div className="shrink-0 text-center">
+                  <p className={`text-sm font-bold tabular-nums ${m.won ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {m.myScore} × {m.opponentScore}
+                  </p>
+                </div>
+
+                {/* Etapa + court */}
+                <div className="shrink-0 text-right hidden sm:block">
+                  <p className="text-xs font-semibold text-neutral-500">{m.roundNumber}ª etapa</p>
+                  {m.courtLabel && (
+                    <p className="text-xs text-neutral-300 mt-0.5">{m.courtLabel}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 7. ESTATÍSTICAS DETALHADAS ────────────────────────── */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 mb-5 overflow-hidden">
         <div className="px-5 pt-5 pb-3 border-b border-neutral-100">
           <h2 className="font-semibold text-neutral-900">Estatísticas Detalhadas</h2>
@@ -578,7 +637,7 @@ export default function Participante() {
         </div>
       )}
 
-      {/* ── 8. CONQUISTAS ─────────────────────────────────────── */}
+      {/* ── 9. CONQUISTAS ─────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 mb-5 overflow-hidden">
         <div className="px-5 pt-5 pb-3 border-b border-neutral-100">
           <h2 className="font-semibold text-neutral-900">Conquistas</h2>
@@ -598,7 +657,7 @@ export default function Participante() {
         </div>
       </div>
 
-      {/* ── 9. RESUMO NARRATIVO ───────────────────────────────── */}
+      {/* ── 10. RESUMO NARRATIVO ──────────────────────────────── */}
       <div className="bg-gradient-to-br from-[#9B2D3E]/5 to-transparent border border-[#9B2D3E]/10 rounded-2xl p-6">
         <p className="text-xs font-semibold text-[#9B2D3E] uppercase tracking-wider mb-2">
           Resumo da Temporada

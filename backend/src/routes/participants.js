@@ -39,6 +39,78 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /:id/matches - individual game history
+router.get('/:id/matches', async (req, res) => {
+  try {
+    const participantId = req.params.id;
+
+    const participant = await prisma.participant.findFirst({
+      where: { id: participantId, tournamentId: req.tournament.id },
+    });
+    if (!participant) return res.status(404).json({ error: 'Participante não encontrado' });
+
+    // All rounds where this participant has a pairId
+    const roundResults = await prisma.roundResult.findMany({
+      where: { participantId, pairId: { not: null }, round: { tournamentId: req.tournament.id } },
+      select: { pairId: true, roundId: true },
+    });
+    if (roundResults.length === 0) return res.json([]);
+
+    const allMatches = [];
+
+    for (const { pairId, roundId } of roundResults) {
+      const matches = await prisma.matchResult.findMany({
+        where: { roundId, OR: [{ pairAId: pairId }, { pairBId: pairId }] },
+        include: { round: true },
+      });
+
+      for (const m of matches) {
+        const isA = m.pairAId === pairId;
+        const myScore       = isA ? m.scoreA : m.scoreB;
+        const opponentScore = isA ? m.scoreB : m.scoreA;
+        const opponentPairId = isA ? m.pairBId : m.pairAId;
+
+        // Resolve opponent names
+        const oppResults = await prisma.roundResult.findMany({
+          where: { roundId, pairId: opponentPairId },
+          include: { participant: { select: { name: true } } },
+        });
+        const opponentNames = oppResults.map(r => r.participant?.name).filter(Boolean);
+
+        // Resolve partner name
+        const partnerResult = await prisma.roundResult.findFirst({
+          where: { roundId, pairId, participantId: { not: participantId } },
+          include: { participant: { select: { name: true } } },
+        });
+        const partnerName = partnerResult?.participant?.name || null;
+
+        allMatches.push({
+          id: m.id,
+          roundNumber: m.round.number,
+          roundDate: m.round.date,
+          courtLabel: m.courtLabel,
+          gameOrder: m.gameOrder,
+          myScore,
+          opponentScore,
+          won: myScore > opponentScore,
+          opponentNames,
+          partnerName,
+        });
+      }
+    }
+
+    allMatches.sort((a, b) => {
+      const d = b.roundDate.localeCompare(a.roundDate);
+      return d !== 0 ? d : b.gameOrder - a.gameOrder;
+    });
+
+    res.json(allMatches);
+  } catch (error) {
+    console.error('Error fetching participant matches:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // GET /:id/history - full round history
 router.get('/:id/history', async (req, res) => {
   try {
