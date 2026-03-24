@@ -58,6 +58,7 @@ export default function Home() {
                 positions,
               }));
               setLastRoundPodium({
+                id: round.id,
                 roundNumber: round.number,
                 date: round.date,
                 courts,
@@ -138,6 +139,14 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-neutral-200 flex justify-end">
+            <Link
+              to={`/t/${slug}/etapa/${lastRoundPodium.id}`}
+              className="text-xs font-semibold text-[#9B2D3E] hover:text-[#8B2942] flex items-center gap-1"
+            >
+              Ver resultados completos →
+            </Link>
           </div>
         </div>
       )}

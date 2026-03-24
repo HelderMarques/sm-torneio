@@ -71,6 +71,9 @@ router.get('/:id', async (req, res) => {
           include: { participant: true },
           orderBy: { position: 'asc' },
         },
+        matchResults: {
+          orderBy: [{ courtLabel: 'asc' }, { gameOrder: 'asc' }],
+        },
       },
     });
     if (!round) {
@@ -197,6 +200,74 @@ router.put('/:id/results/:participantId', authMiddleware, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error updating result:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// GET /:id/matches - get matches with resolved pair names
+router.get('/:id/matches', async (req, res) => {
+  try {
+    const round = await prisma.round.findFirst({
+      where: { id: req.params.id, tournamentId: req.tournament.id },
+      include: {
+        results: { include: { participant: true } },
+        matchResults: { orderBy: [{ courtLabel: 'asc' }, { gameOrder: 'asc' }] },
+      },
+    });
+    if (!round) return res.status(404).json({ error: 'Etapa não encontrada' });
+
+    // Build pairId -> names map
+    const pairNames = {};
+    for (const r of round.results) {
+      if (r.pairId) {
+        if (!pairNames[r.pairId]) pairNames[r.pairId] = [];
+        if (r.participant?.name) pairNames[r.pairId].push(r.participant.name);
+      }
+    }
+
+    const matches = round.matchResults.map((m) => ({
+      ...m,
+      pairANames: pairNames[m.pairAId] || [],
+      pairBNames: pairNames[m.pairBId] || [],
+    }));
+
+    res.json(matches);
+  } catch (error) {
+    console.error('Error fetching matches:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /:id/matches - save match results (admin, replaces all)
+router.post('/:id/matches', authMiddleware, async (req, res) => {
+  try {
+    const roundId = req.params.id;
+    const { matches } = req.body;
+    if (!Array.isArray(matches)) return res.status(400).json({ error: '"matches" deve ser um array' });
+
+    const round = await prisma.round.findFirst({
+      where: { id: roundId, tournamentId: req.tournament.id },
+    });
+    if (!round) return res.status(404).json({ error: 'Etapa não encontrada' });
+
+    await prisma.matchResult.deleteMany({ where: { roundId } });
+    for (const m of matches) {
+      await prisma.matchResult.create({
+        data: {
+          roundId,
+          courtLabel: m.courtLabel || null,
+          pairAId: m.pairAId,
+          pairBId: m.pairBId,
+          scoreA: Number(m.scoreA) || 0,
+          scoreB: Number(m.scoreB) || 0,
+          gameOrder: Number(m.gameOrder) || 0,
+        },
+      });
+    }
+
+    res.status(201).json({ saved: matches.length });
+  } catch (error) {
+    console.error('Error saving matches:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

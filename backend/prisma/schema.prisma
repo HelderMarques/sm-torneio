@@ -59,8 +59,9 @@ model Round {
   group        String // F or M
   tournamentId String @map("tournament_id")
 
-  tournament Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  results    RoundResult[]
+  tournament   Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  results      RoundResult[]
+  matchResults MatchResult[]
 
   @@unique([tournamentId, number, group])
   @@map("rounds")
@@ -87,6 +88,21 @@ model RoundResult {
 
   @@unique([roundId, participantId])
   @@map("round_results")
+}
+
+model MatchResult {
+  id         String  @id @default(uuid())
+  roundId    String  @map("round_id")
+  courtLabel String? @map("court_label")
+  pairAId    String  @map("pair_a_id")
+  pairBId    String  @map("pair_b_id")
+  scoreA     Int     @map("score_a")
+  scoreB     Int     @map("score_b")
+  gameOrder  Int     @map("game_order")
+
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@map("match_results")
 }
 
 model Standing {

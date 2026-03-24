@@ -30,6 +30,10 @@ export default function EtapaDetail() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [matches, setMatches] = useState([]); // { tempId, courtLabel, pairAId, pairBId, scoreA, scoreB, gameOrder }
+  const [matchSaving, setMatchSaving] = useState(false);
+  const [matchMessage, setMatchMessage] = useState('');
+  const [pairRegistry, setPairRegistry] = useState({});
 
   useEffect(() => {
     Promise.all([
@@ -97,6 +101,21 @@ export default function EtapaDetail() {
         }
       }
       setCourtLabels(courtMap);
+
+      // Build pair registry from saved results for match entry
+      const pairReg = {};
+      for (const r of roundData.results || []) {
+        if (r.pairId) {
+          if (!pairReg[r.pairId]) pairReg[r.pairId] = { pairId: r.pairId, courtLabel: r.courtLabel || '—', names: [] };
+          if (r.participant?.name) pairReg[r.pairId].names.push(r.participant.name);
+        }
+      }
+      setPairRegistry(pairReg);
+
+      // Load existing match results
+      if (roundData.matchResults?.length) {
+        setMatches(roundData.matchResults.map((m, i) => ({ ...m, tempId: m.id || String(i) })));
+      }
     }).catch(console.error)
       .finally(() => setLoading(false));
   }, [id, slug]);
@@ -134,6 +153,50 @@ export default function EtapaDetail() {
       }
       return next;
     });
+  };
+
+  const handleSaveMatches = async () => {
+    setMatchSaving(true);
+    setMatchMessage('');
+    try {
+      const payload = matches
+        .filter(m => m.pairAId && m.pairBId)
+        .map((m, i) => ({
+          courtLabel: m.courtLabel,
+          pairAId: m.pairAId,
+          pairBId: m.pairBId,
+          scoreA: Number(m.scoreA) || 0,
+          scoreB: Number(m.scoreB) || 0,
+          gameOrder: i + 1,
+        }));
+      await tApi.post(`/rounds/${id}/matches`, { matches: payload });
+      setMatchMessage('Jogos salvos com sucesso!');
+      setTimeout(() => setMatchMessage(''), 3000);
+    } catch (err) {
+      setMatchMessage('Erro: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setMatchSaving(false);
+    }
+  };
+
+  const addMatchRow = (courtLabel, pairsInCourt) => {
+    setMatches(prev => [...prev, {
+      tempId: Date.now().toString(),
+      courtLabel,
+      pairAId: pairsInCourt[0]?.pairId || '',
+      pairBId: pairsInCourt[1]?.pairId || '',
+      scoreA: 0,
+      scoreB: 0,
+      gameOrder: prev.filter(m => m.courtLabel === courtLabel).length + 1,
+    }]);
+  };
+
+  const removeMatchRow = (tempId) => {
+    setMatches(prev => prev.filter(m => m.tempId !== tempId));
+  };
+
+  const updateMatch = (tempId, field, value) => {
+    setMatches(prev => prev.map(m => m.tempId === tempId ? { ...m, [field]: value } : m));
   };
 
   const handleSave = async () => {
@@ -193,6 +256,14 @@ export default function EtapaDetail() {
   }
 
   const presentParticipants = participants.filter((p) => results[p.id]?.present);
+
+  const pairsByCourt = {};
+  for (const p of Object.values(pairRegistry)) {
+    const court = p.courtLabel;
+    if (!pairsByCourt[court]) pairsByCourt[court] = [];
+    pairsByCourt[court].push({ pairId: p.pairId, label: p.names.join(' / ') });
+  }
+  const hasPairs = Object.keys(pairsByCourt).length > 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
@@ -363,6 +434,96 @@ export default function EtapaDetail() {
             );
           })}
         </div>
+      </div>
+
+      {/* Jogos section */}
+      <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mt-6">
+        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-neutral-900">Jogos</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">Resultados de cada jogo entre duplas. Salve as duplas primeiro para habilitar.</p>
+          </div>
+          {hasPairs && (
+            <button
+              onClick={handleSaveMatches}
+              disabled={matchSaving}
+              className="bg-[#9B2D3E] hover:bg-[#8B2942] text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50"
+            >
+              {matchSaving ? 'Salvando...' : 'Salvar jogos'}
+            </button>
+          )}
+        </div>
+
+        {matchMessage && (
+          <div className={`mx-5 mt-4 p-3 rounded-xl text-sm ${matchMessage.includes('Erro') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-800'}`}>
+            {matchMessage}
+          </div>
+        )}
+
+        {!hasPairs ? (
+          <p className="px-5 py-8 text-sm text-neutral-400 text-center">Defina as duplas e salve os resultados para registrar os jogos.</p>
+        ) : (
+          <div className="divide-y divide-neutral-100">
+            {Object.entries(pairsByCourt).map(([court, pairsInCourt]) => {
+              const courtMatches = matches.filter(m => m.courtLabel === court);
+              return (
+                <div key={court} className="px-5 py-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-neutral-600 uppercase tracking-wide">{court}</p>
+                    <button
+                      onClick={() => addMatchRow(court, pairsInCourt)}
+                      className="text-xs text-[#9B2D3E] hover:text-[#8B2942] font-medium"
+                    >
+                      + Adicionar jogo
+                    </button>
+                  </div>
+                  {courtMatches.length === 0 && (
+                    <p className="text-xs text-neutral-400 py-2">Nenhum jogo registrado. Clique em "+ Adicionar jogo".</p>
+                  )}
+                  <div className="space-y-2">
+                    {courtMatches.map((m) => (
+                      <div key={m.tempId} className="flex items-center gap-2 flex-wrap">
+                        <select
+                          value={m.pairAId}
+                          onChange={e => updateMatch(m.tempId, 'pairAId', e.target.value)}
+                          className="border border-neutral-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 w-44"
+                        >
+                          {pairsInCourt.map(p => <option key={p.pairId} value={p.pairId}>{p.label}</option>)}
+                        </select>
+                        <input
+                          type="number" min="0" max="99"
+                          value={m.scoreA}
+                          onChange={e => updateMatch(m.tempId, 'scoreA', Number(e.target.value))}
+                          className="border border-neutral-200 rounded-lg w-14 text-center px-1 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-[#9B2D3E]/30"
+                        />
+                        <span className="text-neutral-400 text-sm font-medium">×</span>
+                        <input
+                          type="number" min="0" max="99"
+                          value={m.scoreB}
+                          onChange={e => updateMatch(m.tempId, 'scoreB', Number(e.target.value))}
+                          className="border border-neutral-200 rounded-lg w-14 text-center px-1 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-[#9B2D3E]/30"
+                        />
+                        <select
+                          value={m.pairBId}
+                          onChange={e => updateMatch(m.tempId, 'pairBId', e.target.value)}
+                          className="border border-neutral-200 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-[#9B2D3E]/30 w-44"
+                        >
+                          {pairsInCourt.map(p => <option key={p.pairId} value={p.pairId}>{p.label}</option>)}
+                        </select>
+                        <button
+                          onClick={() => removeMatchRow(m.tempId)}
+                          className="text-red-400 hover:text-red-600 text-xs font-medium"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
