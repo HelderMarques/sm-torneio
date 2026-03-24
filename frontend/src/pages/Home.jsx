@@ -97,29 +97,35 @@ export default function Home() {
         </div>
       )}
 
-      {/* Pódio da última etapa — um box por quadra */}
+      {/* Pódio da última etapa — 1 box se quadra única, 1 box por quadra se múltiplas */}
       {lastRoundPodium && (
         <div className="mb-6 flex flex-col gap-3">
-          {lastRoundPodium.courts.map(({ courtLabel, positions }) => (
-            <div key={courtLabel} className="p-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
-              <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
-                Última etapa | {courtLabel} — {lastRoundPodium.roundNumber}ª ({new Date(lastRoundPodium.date + 'T12:00:00').toLocaleDateString('pt-BR')})
-              </p>
-              <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                {[1, 2, 3].map((pos) => {
-                  const pairs = positions[pos] || [];
-                  const emoji = { 1: '🥇', 2: '🥈', 3: '🥉' }[pos];
-                  if (pairs.length === 0) return null;
-                  return (
-                    <span key={pos} className="text-neutral-700">
-                      <strong className="text-neutral-900">{emoji} {pos}º:</strong>{' '}
-                      {pairs.map((p) => p.names.join(' e ')).join(' · ')}
-                    </span>
-                  );
-                })}
+          {lastRoundPodium.courts.map(({ courtLabel, positions }) => {
+            const multiCourt = lastRoundPodium.courts.length > 1;
+            const dateStr = new Date(lastRoundPodium.date + 'T12:00:00').toLocaleDateString('pt-BR');
+            return (
+              <div key={courtLabel} className="p-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
+                <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
+                  {multiCourt
+                    ? `Última etapa | ${courtLabel} — ${lastRoundPodium.roundNumber}ª (${dateStr})`
+                    : `Última etapa — ${lastRoundPodium.roundNumber}ª (${dateStr})`}
+                </p>
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                  {[1, 2, 3].map((pos) => {
+                    const pairs = positions[pos] || [];
+                    const emoji = { 1: '🥇', 2: '🥈', 3: '🥉' }[pos];
+                    if (pairs.length === 0) return null;
+                    return (
+                      <span key={pos} className="text-neutral-700">
+                        <strong className="text-neutral-900">{emoji} {pos}º:</strong>{' '}
+                        {pairs.map((p) => p.names.join(' e ')).join(' · ')}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
