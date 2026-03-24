@@ -72,6 +72,9 @@ export default function Home() {
 
   const today = new Date().toISOString().slice(0, 10);
   const nextRound = rounds.find((r) => r.status === 'SCHEDULED' && r.date >= today);
+  const daysUntilNext = nextRound
+    ? Math.round((new Date(nextRound.date + 'T12:00:00') - new Date(today + 'T12:00:00')) / 86400000)
+    : null;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -86,6 +89,15 @@ export default function Home() {
                 day: '2-digit',
                 month: 'long',
               })}
+            </span>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+              daysUntilNext === 0
+                ? 'bg-emerald-50 text-emerald-700'
+                : daysUntilNext <= 7
+                ? 'bg-amber-50 text-amber-700'
+                : 'bg-neutral-100 text-neutral-500'
+            }`}>
+              {daysUntilNext === 0 ? 'Hoje!' : `${daysUntilNext} dia${daysUntilNext === 1 ? '' : 's'}`}
             </span>
           </div>
           {tournament?.simulateEnabled && (
