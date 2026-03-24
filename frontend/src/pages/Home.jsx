@@ -111,19 +111,18 @@ export default function Home() {
         </div>
       )}
 
-      {/* Pódio da última etapa — 1 box se quadra única, 1 box por quadra se múltiplas */}
+      {/* Pódio da última etapa — box único com sub-secção por quadra */}
       {lastRoundPodium && (
-        <div className="mb-6 flex flex-col gap-3">
-          {lastRoundPodium.courts.map(({ courtLabel, positions }) => {
-            const multiCourt = lastRoundPodium.courts.length > 1;
-            const dateStr = new Date(lastRoundPodium.date + 'T12:00:00').toLocaleDateString('pt-BR');
-            return (
-              <div key={courtLabel} className="p-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
-                <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2">
-                  {multiCourt
-                    ? `Última etapa | ${courtLabel} — ${lastRoundPodium.roundNumber}ª (${dateStr})`
-                    : `Última etapa — ${lastRoundPodium.roundNumber}ª (${dateStr})`}
-                </p>
+        <div className="mb-6 p-4 bg-neutral-50 rounded-xl border border-neutral-200/80">
+          <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-3">
+            {`Última etapa — ${lastRoundPodium.roundNumber}ª (${new Date(lastRoundPodium.date + 'T12:00:00').toLocaleDateString('pt-BR')})`}
+          </p>
+          <div className="flex flex-col gap-3">
+            {lastRoundPodium.courts.map(({ courtLabel, positions }) => (
+              <div key={courtLabel}>
+                {lastRoundPodium.courts.length > 1 && (
+                  <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1">{courtLabel}</p>
+                )}
                 <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
                   {[1, 2, 3].map((pos) => {
                     const pairs = positions[pos] || [];
@@ -138,8 +137,8 @@ export default function Home() {
                   })}
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
 
