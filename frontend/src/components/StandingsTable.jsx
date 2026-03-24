@@ -24,32 +24,32 @@ export default function StandingsTable({ standings, showDetails = true }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
+      <table className="min-w-full text-sm border-separate border-spacing-0">
         <thead>
-          <tr className="bg-neutral-50 border-b border-neutral-200">
-            <th className="sticky left-0 z-20 w-14 bg-neutral-50 px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">#</th>
-            <th className="sticky left-14 z-20 bg-neutral-50 px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider border-r border-neutral-200">Nome</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Pts</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Ganhos</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Perd.</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Desc.</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Bônus</th>
-            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Part.</th>
+          <tr className="bg-neutral-50">
+            <th className="sticky left-0 z-20 w-14 bg-neutral-50 px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">#</th>
+            <th className="sticky left-14 z-20 bg-neutral-50 px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-r border-neutral-200">Nome</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Pts</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Ganhos</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Perd.</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Desc.</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Bônus</th>
+            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Part.</th>
             {showDetails && (
               <>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">1º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">2º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">3º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">4º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">5º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">6º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">7º</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">SV</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">SP</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">SS</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">GV</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">GP</th>
-                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">SG</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">1º</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">2º</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">3º</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">4º</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">5º</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">6º</th>
+                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">7º</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">SV</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">SP</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">SS</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">GV</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">GP</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">SG</th>
               </>
             )}
           </tr>
@@ -60,14 +60,14 @@ export default function StandingsTable({ standings, showDetails = true }) {
             return (
             <tr
               key={s.participantId}
-              className={`border-b border-neutral-100 ${rowBg}`}
+              className={rowBg}
             >
-              <td className={`sticky left-0 z-10 w-14 px-2 py-3 text-center ${rowBg}`}>
+              <td className={`sticky left-0 z-10 w-14 px-2 py-3 text-center border-b border-neutral-100 ${rowBg}`}>
                 <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-base ${positionBadge(s.position)}`} title={`${s.position}º lugar`}>
                   {POSITION_EMOJI[s.position] ?? s.position}
                 </span>
               </td>
-              <td className={`sticky left-14 z-10 px-4 py-3 font-medium border-r border-neutral-200 ${rowBg}`}>
+              <td className={`sticky left-14 z-10 px-4 py-3 font-medium border-b border-r border-neutral-100 border-r-neutral-200 ${rowBg}`}>
                 <Link
                   to={`/t/${slug}/participante/${s.participantId}`}
                   className="text-neutral-900 hover:text-[#9B2D3E]"
@@ -75,29 +75,29 @@ export default function StandingsTable({ standings, showDetails = true }) {
                   {s.name}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-center font-semibold text-neutral-900">
+              <td className="px-4 py-3 text-center font-semibold text-neutral-900 border-b border-neutral-100">
                 {s.pointsValid}
               </td>
-              <td className="px-4 py-3 text-center text-neutral-600">{s.pointsRaw}</td>
-              <td className="px-4 py-3 text-center text-red-600/90">{s.pointsPenalty > 0 ? `-${s.pointsPenalty}` : '0'}</td>
-              <td className="px-4 py-3 text-center text-neutral-500">{s.pointsDiscard > 0 ? `-${s.pointsDiscard}` : '-'}</td>
-              <td className="px-4 py-3 text-center text-emerald-600/90">{s.pointsBonus > 0 ? `+${s.pointsBonus}` : '-'}</td>
-              <td className="px-4 py-3 text-center text-neutral-600">{s.roundsPlayed}</td>
+              <td className="px-4 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.pointsRaw}</td>
+              <td className="px-4 py-3 text-center text-red-600/90 border-b border-neutral-100">{s.pointsPenalty > 0 ? `-${s.pointsPenalty}` : '0'}</td>
+              <td className="px-4 py-3 text-center text-neutral-500 border-b border-neutral-100">{s.pointsDiscard > 0 ? `-${s.pointsDiscard}` : '-'}</td>
+              <td className="px-4 py-3 text-center text-emerald-600/90 border-b border-neutral-100">{s.pointsBonus > 0 ? `+${s.pointsBonus}` : '-'}</td>
+              <td className="px-4 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.roundsPlayed}</td>
               {showDetails && (
                 <>
-                  <td className="px-2 py-3 text-center text-neutral-600">{s.firstPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600">{s.secondPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600">{s.thirdPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600">{s.fourthPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600">{s.fifthPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600">{s.sixthPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600">{s.seventhPlaces || '-'}</td>
-                  <td className="px-3 py-3 text-center text-neutral-600">{s.setsWon}</td>
-                  <td className="px-3 py-3 text-center text-neutral-600">{s.setsLost}</td>
-                  <td className="px-3 py-3 text-center font-medium text-neutral-700">{s.saldoSets}</td>
-                  <td className="px-3 py-3 text-center text-neutral-600">{s.gamesWon}</td>
-                  <td className="px-3 py-3 text-center text-neutral-600">{s.gamesLost}</td>
-                  <td className="px-3 py-3 text-center font-medium text-neutral-700">{s.saldoGames}</td>
+                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.firstPlaces || '-'}</td>
+                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.secondPlaces || '-'}</td>
+                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.thirdPlaces || '-'}</td>
+                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.fourthPlaces || '-'}</td>
+                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.fifthPlaces || '-'}</td>
+                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.sixthPlaces || '-'}</td>
+                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.seventhPlaces || '-'}</td>
+                  <td className="px-3 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.setsWon}</td>
+                  <td className="px-3 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.setsLost}</td>
+                  <td className="px-3 py-3 text-center font-medium text-neutral-700 border-b border-neutral-100">{s.saldoSets}</td>
+                  <td className="px-3 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.gamesWon}</td>
+                  <td className="px-3 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.gamesLost}</td>
+                  <td className="px-3 py-3 text-center font-medium text-neutral-700 border-b border-neutral-100">{s.saldoGames}</td>
                 </>
               )}
             </tr>
