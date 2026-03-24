@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import api from '../api/client';
 
 export default function TorneioPicker() {
@@ -12,6 +12,11 @@ export default function TorneioPicker() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  if (!loading) {
+    const torneio2026 = tournaments.find((t) => t.year === 2026);
+    if (torneio2026) return <Navigate to={`/t/${torneio2026.slug}`} replace />;
+  }
 
   if (loading) {
     return (
