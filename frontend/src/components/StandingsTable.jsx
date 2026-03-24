@@ -28,7 +28,7 @@ export default function StandingsTable({ standings, showDetails = true }) {
         <thead>
           <tr className="bg-neutral-50 border-b border-neutral-200">
             <th className="sticky left-0 z-20 w-14 bg-neutral-50 px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">#</th>
-            <th className="sticky left-14 z-20 bg-neutral-50 px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">Nome</th>
+            <th className="sticky left-14 z-20 bg-neutral-50 px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider border-r border-neutral-200">Nome</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Pts</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Ganhos</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Perd.</th>
@@ -67,7 +67,7 @@ export default function StandingsTable({ standings, showDetails = true }) {
                   {POSITION_EMOJI[s.position] ?? s.position}
                 </span>
               </td>
-              <td className={`sticky left-14 z-10 px-4 py-3 font-medium shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)] ${rowBg}`}>
+              <td className={`sticky left-14 z-10 px-4 py-3 font-medium border-r border-neutral-200 ${rowBg}`}>
                 <Link
                   to={`/t/${slug}/participante/${s.participantId}`}
                   className="text-neutral-900 hover:text-[#9B2D3E]"
