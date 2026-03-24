@@ -320,7 +320,7 @@ export default function Participante() {
               )}
             </div>
             <p className="text-sm text-neutral-500 mt-0.5">
-              Grupo {participant.group === 'F' ? 'Feminino' : 'Masculino'} · {tournament?.name} {tournament?.year}
+              Grupo {participant.group === 'F' ? 'Feminino' : 'Masculino'} · {tournament?.name}
             </p>
             {currentPosition != null && (
               <p className="text-sm font-semibold text-neutral-700 mt-1.5">
