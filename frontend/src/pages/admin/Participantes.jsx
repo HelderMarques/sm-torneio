@@ -2,8 +2,25 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTournament } from '../../hooks/useTournament';
 
+function GroupToggle({ group, onChange }) {
+  return (
+    <div className="flex rounded-xl border border-neutral-200 overflow-hidden text-sm font-medium">
+      {['F', 'M'].map((g) => (
+        <button
+          key={g}
+          onClick={() => onChange(g)}
+          className={`px-4 py-1.5 transition-colors ${group === g ? 'bg-[#9B2D3E] text-white' : 'text-neutral-500 hover:bg-neutral-50'}`}
+        >
+          {g === 'F' ? 'Feminino' : 'Masculino'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Participantes() {
   const { slug, tApi } = useTournament();
+  const [group, setGroup] = useState('F');
   const [participants, setParticipants] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -14,10 +31,10 @@ export default function Participantes() {
   const [bulkLoading, setBulkLoading] = useState(false);
 
   const load = () => {
-    tApi.get('/participants?group=F').then((res) => setParticipants(res.data));
+    tApi.get(`/participants?group=${group}`).then((res) => setParticipants(res.data));
   };
 
-  useEffect(load, [slug]);
+  useEffect(load, [slug, group]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,7 +48,7 @@ export default function Participantes() {
       }
       setShowForm(false);
       setEditId(null);
-      setForm({ name: '', group: 'F' });
+      setForm({ name: '', group });
       load();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
@@ -49,7 +66,7 @@ export default function Participantes() {
     }
     setBulkLoading(true);
     try {
-      const res = await tApi.post('/participants/bulk', { names: trimmed, group: 'F' });
+      const res = await tApi.post('/participants/bulk', { names: trimmed, group });
       setMessage(`${res.data.created} participante(s) adicionado(s).`);
       setBulkNames('');
       load();
@@ -63,7 +80,7 @@ export default function Participantes() {
 
   const startEdit = (p) => {
     setEditId(p.id);
-    setForm({ name: p.name, group: p.group });
+    setForm({ name: p.name, group: p.group || group });
     setShowForm(true);
   };
 
@@ -89,17 +106,20 @@ export default function Participantes() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Gerenciar Participantes</h1>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           <Link to={`/admin/t/${slug}`} className="text-sm text-neutral-500 hover:text-neutral-900 font-medium">← Dashboard</Link>
           <button
-            onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', group: 'F' }); }}
+            onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', group }); }}
             className="bg-[#9B2D3E] hover:bg-[#8B2942] text-white px-4 py-2 rounded-xl text-sm font-medium"
           >
             + Novo
           </button>
         </div>
+      </div>
+      <div className="mb-6">
+        <GroupToggle group={group} onChange={(g) => { setGroup(g); setShowForm(false); setEditId(null); }} />
       </div>
 
       {message && (
@@ -150,7 +170,7 @@ export default function Participantes() {
         </form>
       </div>
 
-      <p className="text-neutral-500 text-sm mb-6">{participants.length} participantes</p>
+      <p className="text-neutral-500 text-sm mb-6">{participants.length} participantes — grupo {group === 'F' ? 'Feminino' : 'Masculino'}</p>
 
       <div className="bg-white rounded-2xl border border-neutral-200/80 divide-y divide-neutral-100 overflow-hidden">
         {participants.map((p) => (

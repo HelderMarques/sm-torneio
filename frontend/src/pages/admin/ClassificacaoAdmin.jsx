@@ -3,9 +3,26 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTournament } from '../../hooks/useTournament';
 
+function GroupToggle({ group, onChange }) {
+  return (
+    <div className="flex rounded-xl border border-neutral-200 overflow-hidden text-sm font-medium">
+      {['F', 'M'].map((g) => (
+        <button
+          key={g}
+          onClick={() => onChange(g)}
+          className={`px-4 py-1.5 transition-colors ${group === g ? 'bg-[#9B2D3E] text-white' : 'text-neutral-500 hover:bg-neutral-50'}`}
+        >
+          {g === 'F' ? 'Feminino' : 'Masculino'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function ClassificacaoAdmin() {
   const { user, logout } = useAuth();
   const { slug, tournament, tApi } = useTournament();
+  const [group, setGroup] = useState('F');
   const [standings, setStandings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -16,13 +33,13 @@ export default function ClassificacaoAdmin() {
   const load = () => {
     setLoading(true);
     tApi
-      .get('/standings/F')
+      .get(`/standings/${group}`)
       .then((res) => setStandings(res.data || []))
       .catch(() => setMessage('Erro ao carregar classificação.'))
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [slug]);
+  useEffect(load, [slug, group]);
 
   const startEdit = (row) => {
     setEditingId(row.participantId);
@@ -87,10 +104,11 @@ export default function ClassificacaoAdmin() {
           <div>
             <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Editar Classificação</h1>
             <p className="text-sm text-neutral-500 mt-0.5">
-              {tournament?.name} — grupo feminino. Edição manual, não altera resultados das etapas.
+              {tournament?.name} — grupo {group === 'F' ? 'Feminino' : 'Masculino'}. Edição manual, não altera resultados das etapas.
             </p>
           </div>
           <div className="flex items-center gap-4">
+            <GroupToggle group={group} onChange={(g) => { setGroup(g); setEditingId(null); setForm({}); }} />
             <Link
               to={`/admin/t/${slug}`}
               className="text-sm text-neutral-500 hover:text-neutral-900 font-medium"

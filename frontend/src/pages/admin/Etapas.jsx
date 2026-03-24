@@ -4,17 +4,31 @@ import { useTournament } from '../../hooks/useTournament';
 
 export default function Etapas() {
   const { slug, tApi } = useTournament();
+  const [group, setGroup] = useState('F');
   const [rounds, setRounds] = useState([]);
 
   useEffect(() => {
-    tApi.get('/rounds?group=F').then((res) => setRounds(res.data));
-  }, [slug]);
+    tApi.get(`/rounds?group=${group}`).then((res) => setRounds(res.data));
+  }, [slug, group]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Gerenciar Etapas</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Registrar Resultados</h1>
         <Link to={`/admin/t/${slug}`} className="text-sm text-neutral-500 hover:text-neutral-900 font-medium">← Dashboard</Link>
+      </div>
+      <div className="mb-6">
+        <div className="flex rounded-xl border border-neutral-200 overflow-hidden text-sm font-medium w-fit">
+          {['F', 'M'].map((g) => (
+            <button
+              key={g}
+              onClick={() => setGroup(g)}
+              className={`px-4 py-1.5 transition-colors ${group === g ? 'bg-[#9B2D3E] text-white' : 'text-neutral-500 hover:bg-neutral-50'}`}
+            >
+              {g === 'F' ? 'Feminino' : 'Masculino'}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-neutral-200/80 divide-y divide-neutral-100 overflow-hidden">
