@@ -27,8 +27,8 @@ export default function StandingsTable({ standings, showDetails = true }) {
       <table className="min-w-full text-sm">
         <thead>
           <tr className="bg-neutral-50 border-b border-neutral-200">
-            <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">#</th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">Nome</th>
+            <th className="sticky left-0 z-20 w-14 bg-neutral-50 px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">#</th>
+            <th className="sticky left-14 z-20 bg-neutral-50 px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)]">Nome</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Pts</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Ganhos</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider">Perd.</th>
@@ -55,17 +55,19 @@ export default function StandingsTable({ standings, showDetails = true }) {
           </tr>
         </thead>
         <tbody>
-          {standings.map((s, idx) => (
+          {standings.map((s, idx) => {
+            const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-neutral-50';
+            return (
             <tr
               key={s.participantId}
-              className={`border-b border-neutral-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-neutral-50/50'}`}
+              className={`border-b border-neutral-100 ${rowBg}`}
             >
-              <td className="px-4 py-3 text-center">
+              <td className={`sticky left-0 z-10 w-14 px-2 py-3 text-center ${rowBg}`}>
                 <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-base ${positionBadge(s.position)}`} title={`${s.position}º lugar`}>
                   {POSITION_EMOJI[s.position] ?? s.position}
                 </span>
               </td>
-              <td className="px-4 py-3 font-medium">
+              <td className={`sticky left-14 z-10 px-4 py-3 font-medium shadow-[2px_0_4px_-1px_rgba(0,0,0,0.06)] ${rowBg}`}>
                 <Link
                   to={`/t/${slug}/participante/${s.participantId}`}
                   className="text-neutral-900 hover:text-[#9B2D3E]"
@@ -99,7 +101,7 @@ export default function StandingsTable({ standings, showDetails = true }) {
                 </>
               )}
             </tr>
-          ))}
+          );})}
         </tbody>
       </table>
       {showDetails && (
