@@ -1,7 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const authMiddleware = require('../middleware/auth');
-const { recalculateStandings, getPointsForResult } = require('../services/standingsService');
+const { recalculateStandings, getPointsForResult, getStandings } = require('../services/standingsService');
 
 const router = express.Router({ mergeParams: true });
 const prisma = new PrismaClient();
@@ -57,6 +57,100 @@ router.post('/', authMiddleware, async (req, res) => {
     res.status(201).json(round);
   } catch (error) {
     console.error('Error creating round:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// GET /next/possible-pairs/:participantId - possíveis duplas do participante na próxima etapa
+router.get('/next/possible-pairs/:participantId', async (req, res) => {
+  try {
+    const { participantId } = req.params;
+    const tournamentId = req.tournament.id;
+
+    const participant = await prisma.participant.findFirst({
+      where: { id: participantId, tournamentId },
+    });
+    if (!participant) return res.status(404).json({ error: 'Participante não encontrado' });
+
+    const group = participant.group;
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Próxima etapa agendada do grupo
+    const nextRound = await prisma.round.findFirst({
+      where: { tournamentId, group, date: { gte: today }, status: { not: 'COMPLETED' } },
+      orderBy: { date: 'asc' },
+    });
+
+    if (!nextRound) return res.json({ noNextRound: true });
+
+    // Quantas etapas já foram concluídas
+    const completedCount = await prisma.round.count({
+      where: { tournamentId, group, status: 'COMPLETED' },
+    });
+
+    // Classificação atual (já ordenada pelos critérios de desempate)
+    const standings = await getStandings(group, tournamentId);
+    const n = standings.length;
+
+    const roundInfo = { id: nextRound.id, number: nextRound.number, date: nextRound.date };
+
+    // 1ª etapa: sorteio completamente livre
+    if (completedCount === 0) {
+      return res.json({
+        nextRound: roundInfo,
+        firstRound: true,
+        participantList: null,
+        possiblePartners: standings
+          .filter((s) => s.participantId !== participantId)
+          .map((s) => ({ participantId: s.participantId, name: s.name, position: s.position })),
+        isOdd: n % 2 !== 0,
+        totalParticipants: n,
+      });
+    }
+
+    // Divide em lista A (metade melhor) e lista B (metade pior — sempre a maior se ímpar)
+    const halfA = Math.floor(n / 2);
+    const listA = standings.slice(0, halfA);
+    const listB = standings.slice(halfA);
+
+    const inListA = listA.some((s) => s.participantId === participantId);
+    const participantListLabel = inListA ? 'A' : 'B';
+    const oppositeList = inListA ? listB : listA;
+
+    // Parceiros já jogados na temporada
+    const pastResults = await prisma.roundResult.findMany({
+      where: {
+        participantId,
+        pairId: { not: null },
+        round: { tournamentId, group, status: 'COMPLETED' },
+      },
+      select: { pairId: true, roundId: true },
+    });
+
+    const pastPartnerIds = new Set();
+    for (const { pairId, roundId } of pastResults) {
+      const partners = await prisma.roundResult.findMany({
+        where: { roundId, pairId, participantId: { not: participantId } },
+        select: { participantId: true },
+      });
+      partners.forEach((p) => pastPartnerIds.add(p.participantId));
+    }
+
+    const possiblePartners = oppositeList
+      .filter((s) => !pastPartnerIds.has(s.participantId))
+      .map((s) => ({ participantId: s.participantId, name: s.name, position: s.position }));
+
+    res.json({
+      nextRound: roundInfo,
+      firstRound: false,
+      participantList: participantListLabel,
+      possiblePartners,
+      allExhausted: possiblePartners.length === 0,
+      isOdd: n % 2 !== 0,
+      totalParticipants: n,
+    });
+  } catch (error) {
+    console.error('Error fetching possible pairs:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

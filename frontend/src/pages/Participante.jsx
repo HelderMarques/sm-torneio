@@ -131,6 +131,7 @@ export default function Participante() {
   const [history, setHistory] = useState([]);
   const [standings, setStandings] = useState([]);
   const [matchHistory, setMatchHistory] = useState([]);
+  const [possiblePairs, setPossiblePairs] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -144,12 +145,14 @@ export default function Participante() {
           tApi.get(`/participants/${id}/history`),
           tApi.get(`/standings/${p.group}`),
           tApi.get(`/participants/${id}/matches`),
+          tApi.get(`/rounds/next/possible-pairs/${id}`),
         ]);
       })
-      .then(([hRes, sRes, mRes]) => {
+      .then(([hRes, sRes, mRes, ppRes]) => {
         setHistory(hRes.data || []);
         setStandings(sRes.data || []);
         setMatchHistory(mRes.data || []);
+        setPossiblePairs(ppRes.data || null);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -656,6 +659,72 @@ export default function Participante() {
           ))}
         </div>
       </div>
+
+      {/* ── POSSÍVEIS DUPLAS ──────────────────────────────────── */}
+      {possiblePairs && !possiblePairs.noNextRound && (() => {
+        const pp = possiblePairs;
+        const fmtDate = (d) =>
+          new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const title = `Possíveis Duplas — ${pp.nextRound.number}ª Etapa (${fmtDate(pp.nextRound.date)})`;
+
+        let body;
+        if (pp.firstRound) {
+          body = (
+            <>
+              <p className="text-xs text-neutral-500 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-3">
+                1ª etapa — sorteio completamente livre, sem restrições de dupla.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {pp.possiblePartners.map((p) => (
+                  <div key={p.participantId} className="flex items-center gap-2 bg-neutral-50 rounded-lg px-3 py-2">
+                    <span className="text-xs font-bold text-neutral-400 w-5 shrink-0">{p.position}º</span>
+                    <span className="text-sm text-neutral-800 truncate">{p.name.split(' ')[0]}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          );
+        } else if (pp.allExhausted) {
+          body = (
+            <p className="text-sm text-neutral-500 bg-neutral-50 border border-neutral-100 rounded-lg px-4 py-3">
+              Todos os participantes da lista oposta já foram seus parceiros nesta temporada. Qualquer dupla poderá se repetir.
+            </p>
+          );
+        } else {
+          body = (
+            <>
+              <p className="text-xs text-neutral-500 mb-3">
+                Lista {pp.participantList === 'A' ? 'A (melhor metade)' : 'B (pior metade)'} · parceiros possíveis da lista {pp.participantList === 'A' ? 'B' : 'A'}
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {pp.possiblePartners.map((p) => (
+                  <div key={p.participantId} className="flex items-center gap-2 bg-neutral-50 rounded-lg px-3 py-2">
+                    <span className="text-xs font-bold text-neutral-400 w-5 shrink-0">{p.position}º</span>
+                    <span className="text-sm text-neutral-800 truncate">{p.name.split(' ')[0]}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          );
+        }
+
+        return (
+          <div className="bg-white rounded-2xl border border-neutral-200/80 mb-5 overflow-hidden">
+            <div className="px-5 pt-5 pb-3 border-b border-neutral-100 flex items-start justify-between gap-2">
+              <div>
+                <h2 className="font-semibold text-neutral-900">{title}</h2>
+                <p className="text-xs text-neutral-400 mt-0.5">Baseado na classificação atual e histórico de duplas</p>
+              </div>
+              {pp.isOdd && (
+                <span className="shrink-0 text-xs bg-orange-50 text-orange-600 border border-orange-100 rounded-full px-2 py-0.5 font-medium">
+                  {pp.totalParticipants} participantes — um ficará fora
+                </span>
+              )}
+            </div>
+            <div className="px-5 py-4">{body}</div>
+          </div>
+        );
+      })()}
 
       {/* ── 10. RESUMO NARRATIVO ──────────────────────────────── */}
       <div className="bg-gradient-to-br from-[#9B2D3E]/5 to-transparent border border-[#9B2D3E]/10 rounded-2xl p-6">
