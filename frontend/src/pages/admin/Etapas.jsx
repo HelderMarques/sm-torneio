@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTournament } from '../../hooks/useTournament';
+import { useAdminGroup } from '../../hooks/useAdminGroup';
+import GroupToggle from '../../components/GroupToggle';
 
 export default function Etapas() {
   const { slug, tApi } = useTournament();
-  const [group, setGroup] = useState('F');
+  const { group, setGroup } = useAdminGroup();
   const [rounds, setRounds] = useState([]);
 
   useEffect(() => {
@@ -18,17 +20,7 @@ export default function Etapas() {
         <Link to={`/admin/t/${slug}`} className="text-sm text-neutral-500 hover:text-neutral-900 font-medium">← Dashboard</Link>
       </div>
       <div className="mb-6">
-        <div className="flex rounded-xl border border-neutral-200 overflow-hidden text-sm font-medium w-fit">
-          {['F', 'M'].map((g) => (
-            <button
-              key={g}
-              onClick={() => setGroup(g)}
-              className={`px-4 py-1.5 transition-colors ${group === g ? 'bg-[#9B2D3E] text-white' : 'text-neutral-500 hover:bg-neutral-50'}`}
-            >
-              {g === 'F' ? 'Feminino' : 'Masculino'}
-            </button>
-          ))}
-        </div>
+        <GroupToggle group={group} onChange={setGroup} />
       </div>
 
       <div className="bg-white rounded-2xl border border-neutral-200/80 divide-y divide-neutral-100 overflow-hidden">

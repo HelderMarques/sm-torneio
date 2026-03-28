@@ -5,6 +5,7 @@ const fs = require('fs');
 const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
+const adminUserRoutes = require('./routes/adminUsers');
 const tournamentRoutes = require('./routes/tournaments');
 const participantRoutes = require('./routes/participants');
 const roundRoutes = require('./routes/rounds');
@@ -19,6 +20,9 @@ app.use(express.json());
 
 // Auth (not tournament-scoped)
 app.use('/api/auth', authRoutes);
+
+// Admin user management (master only)
+app.use('/api/admin/users', adminUserRoutes);
 
 // Tournament-scoped routes (mais específicas primeiro para não capturar GET/DELETE etc.)
 app.use('/api/tournaments/:tournamentSlug/participants', tournamentMiddleware, participantRoutes);

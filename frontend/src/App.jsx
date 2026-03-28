@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { AdminGroupProvider } from './hooks/useAdminGroup';
 import TournamentLayout from './components/TournamentLayout';
 import AdminLayout from './components/AdminLayout';
 import TorneioPicker from './pages/TorneioPicker';
@@ -10,6 +11,7 @@ import Participante from './pages/Participante';
 import Regulamento from './pages/Regulamento';
 import EtapaPublic from './pages/EtapaPublic';
 import SimularEtapa from './pages/SimularEtapa';
+import SetPassword from './pages/SetPassword';
 import Login from './pages/admin/Login';
 import Dashboard from './pages/admin/Dashboard';
 import Etapas from './pages/admin/Etapas';
@@ -18,6 +20,7 @@ import Participantes from './pages/admin/Participantes';
 import CalendarioAdmin from './pages/admin/Calendario';
 import TorneiosAdmin from './pages/admin/Torneios';
 import ClassificacaoAdmin from './pages/admin/ClassificacaoAdmin';
+import Usuarios from './pages/admin/Usuarios';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -35,7 +38,7 @@ function ProtectedRoute({ children }) {
 function AppContent() {
   return (
     <Routes>
-      {/* Landing: escolha de torneio (2025 arquivado, 2026 ativo) */}
+      {/* Landing */}
       <Route path="/" element={<TorneioPicker />} />
 
       {/* Rotas por torneio */}
@@ -48,6 +51,9 @@ function AppContent() {
         <Route path="regulamento" element={<Regulamento />} />
         <Route path="etapa/:id" element={<EtapaPublic />} />
       </Route>
+
+      {/* Rota pública — definir senha via convite */}
+      <Route path="/admin/set-password" element={<SetPassword />} />
 
       {/* Admin */}
       <Route path="/admin" element={<Navigate to="/admin/tournaments" replace />} />
@@ -63,8 +69,29 @@ function AppContent() {
         }
       />
 
-      {/* Admin tournament-scoped routes */}
-      <Route path="/admin/t/:slug" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+      {/* Usuários — fora do escopo de torneio, master only */}
+      <Route
+        path="/admin/usuarios"
+        element={
+          <ProtectedRoute>
+            <AdminGroupProvider>
+              <Usuarios />
+            </AdminGroupProvider>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin tournament-scoped routes — compartilham o AdminGroupProvider */}
+      <Route
+        path="/admin/t/:slug"
+        element={
+          <ProtectedRoute>
+            <AdminGroupProvider>
+              <AdminLayout />
+            </AdminGroupProvider>
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Dashboard />} />
         <Route path="classificacao" element={<ClassificacaoAdmin />} />
         <Route path="calendario" element={<CalendarioAdmin />} />

@@ -8,11 +8,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  createdAt DateTime @default(now()) @map("created_at")
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String?   // nullable para convidados que ainda não definiram senha
+  name             String
+  role             String    @default("ADMIN")   // MASTER | ADMIN
+  status           String    @default("PENDING") // ACTIVE | PENDING | INACTIVE
+  inviteTokenHash  String?   @map("invite_token_hash")
+  inviteExpiresAt  DateTime? @map("invite_expires_at")
+  lastLoginAt      DateTime? @map("last_login_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   @@map("users")
 }

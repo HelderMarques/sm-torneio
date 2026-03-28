@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('sm_token');
     if (token) {
       api.get('/auth/me')
-        .then((res) => setUser(res.data.user))
+        .then((res) => setUser(res.data.user)) // includes role
         .catch(() => localStorage.removeItem('sm_token'))
         .finally(() => setLoading(false));
     } else {

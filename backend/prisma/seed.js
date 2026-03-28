@@ -12,16 +12,18 @@ async function main() {
   await prisma.tournament.deleteMany();
   await prisma.user.deleteMany();
 
-  // Create admin user
+  // Create master admin user
   const hashedPassword = await bcrypt.hash('admin123', 10);
   await prisma.user.create({
     data: {
       email: 'admin@smtorneio.com',
       password: hashedPassword,
       name: 'Administrador',
+      role: 'MASTER',
+      status: 'ACTIVE',
     },
   });
-  console.log('Admin user created: admin@smtorneio.com / admin123');
+  console.log('Master user created: admin@smtorneio.com / admin123');
 
   // Create tournaments
   const demoTournament = await prisma.tournament.create({
