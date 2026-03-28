@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useTournament } from '../../hooks/useTournament';
 import { useAdminGroup } from '../../hooks/useAdminGroup';
 import GroupToggle from '../../components/GroupToggle';
-import AdminBreadcrumb from '../../components/AdminBreadcrumb';
 
 export default function Etapas() {
   const { slug, tApi } = useTournament();
@@ -15,9 +14,8 @@ export default function Etapas() {
   }, [slug, group]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <AdminBreadcrumb items={[{ label: 'Torneios', href: '/admin/tournaments' }, { label: 'Painel', href: `/admin/t/${slug}` }, { label: 'Registrar Resultados' }]} />
-      <div className="flex items-center justify-between mb-6 mt-1">
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Registrar Resultados</h1>
       </div>
       <div className="mb-6">

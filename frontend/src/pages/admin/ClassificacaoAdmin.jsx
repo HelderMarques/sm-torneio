@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useTournament } from '../../hooks/useTournament';
 import { useAdminGroup } from '../../hooks/useAdminGroup';
 import GroupToggle from '../../components/GroupToggle';
-import AdminBreadcrumb from '../../components/AdminBreadcrumb';
 
 export default function ClassificacaoAdmin() {
   const { slug, tournament, tApi } = useTournament();
@@ -82,10 +81,8 @@ export default function ClassificacaoAdmin() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <AdminBreadcrumb items={[{ label: 'Torneios', href: '/admin/tournaments' }, { label: 'Painel', href: `/admin/t/${slug}` }, { label: 'Editar Classificação' }]} />
-        <div className="flex items-center justify-between mb-6 mt-1">
+    <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Editar Classificação</h1>
             <p className="text-sm text-neutral-500 mt-0.5">
@@ -229,7 +226,6 @@ export default function ClassificacaoAdmin() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

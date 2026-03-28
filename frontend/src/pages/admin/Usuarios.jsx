@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../api/client';
-import AdminBreadcrumb from '../../components/AdminBreadcrumb';
 
 const STATUS_LABEL = { ACTIVE: 'Ativo', PENDING: 'Pendente', INACTIVE: 'Inativo' };
 const STATUS_CLS = {
@@ -17,7 +16,7 @@ function fmtDate(d) {
 }
 
 export default function Usuarios() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -77,12 +76,34 @@ export default function Usuarios() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10">
-      <AdminBreadcrumb items={[{ label: 'Torneios', href: '/admin/tournaments' }, { label: 'Usuários' }]} />
-      <div className="mb-8 mt-1">
-        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Usuários</h1>
-        <p className="text-sm text-neutral-500 mt-0.5">Gerenciar administradores do painel</p>
-      </div>
+    <div className="min-h-screen bg-neutral-50">
+      {/* Mini top bar para páginas fora do AdminLayout */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-neutral-200/80">
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Link to="/admin/tournaments" className="font-bold text-[#9B2D3E] text-sm tracking-tight">
+              SM Torneio
+            </Link>
+            <span className="text-neutral-300">›</span>
+            <span className="text-sm text-neutral-600 font-medium">Usuários</span>
+          </div>
+          <button
+            onClick={logout}
+            className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h5a2 2 0 012 2v1" />
+            </svg>
+            Sair
+          </button>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Usuários</h1>
+          <p className="text-sm text-neutral-500 mt-0.5">Gerenciar administradores do painel</p>
+        </div>
 
       {/* Feedback */}
       {message && (
@@ -196,6 +217,7 @@ export default function Usuarios() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

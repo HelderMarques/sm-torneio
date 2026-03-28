@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTournament } from '../../hooks/useTournament';
-import AdminBreadcrumb from '../../components/AdminBreadcrumb';
 
 const POSITIONS = [
   { value: 1, label: '1º — 100 pts' },
@@ -267,10 +266,16 @@ export default function EtapaDetail() {
   const hasPairs = Object.keys(pairsByCourt).length > 0;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      <AdminBreadcrumb items={[{ label: 'Torneios', href: '/admin/tournaments' }, { label: 'Painel', href: `/admin/t/${slug}` }, { label: 'Registrar Resultados', href: `/admin/t/${slug}/etapas` }, { label: `${round.number}ª Etapa` }]} />
-      <div className="flex items-center justify-between mb-8 mt-1">
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-8">
         <div>
+          <p className="text-xs text-neutral-400 mb-1 flex items-center gap-1">
+            <Link to={`/admin/t/${slug}/etapas`} className="hover:text-[#9B2D3E] transition-colors">
+              Registrar Resultados
+            </Link>
+            <span>›</span>
+            <span>{round.number}ª Etapa</span>
+          </p>
           <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
             {round.number}ª Etapa — {round.group === 'F' ? 'Feminino' : 'Masculino'}
           </h1>

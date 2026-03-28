@@ -4,10 +4,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTournament } from '../../hooks/useTournament';
 import { useAdminGroup } from '../../hooks/useAdminGroup';
 import GroupToggle from '../../components/GroupToggle';
-import AdminBreadcrumb from '../../components/AdminBreadcrumb';
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { tournament, slug, tApi } = useTournament();
   const { group, setGroup } = useAdminGroup();
   const [rounds, setRounds] = useState([]);
@@ -30,23 +29,10 @@ export default function Dashboard() {
   const isMaster = user?.role === 'MASTER';
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <AdminBreadcrumb items={[{ label: 'Torneios', href: '/admin/tournaments' }, { label: tournament?.name || slug }]} />
-        <div className="flex items-center justify-between mt-1">
-          <div>
-            <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Painel Administrativo</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">Bem-vindo, {user?.name}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to={`/t/${slug}`} className="text-sm text-neutral-500 hover:text-neutral-900 font-medium">
-              Ver site
-            </Link>
-            <button onClick={logout} className="text-sm text-red-600 hover:text-red-700 font-medium">
-              Sair
-            </button>
-          </div>
-        </div>
+        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Painel Administrativo</h1>
+        <p className="text-sm text-neutral-500 mt-0.5">Bem-vindo, {user?.name}</p>
       </div>
 
       {/* ── SEÇÃO COMPARTILHADA (ambas as categorias) ─────────── */}
