@@ -48,57 +48,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Seletor de categoria */}
-      <div className="flex items-center gap-3 mb-6">
-        <span className="text-sm text-neutral-500 font-medium">Categoria:</span>
-        <GroupToggle group={group} onChange={setGroup} />
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
-          <p className="text-2xl font-semibold text-neutral-900">{groupParticipants}</p>
-          <p className="text-xs text-neutral-500 mt-1">Participantes ({group === 'F' ? 'Feminino' : 'Masculino'})</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
-          <p className="text-2xl font-semibold text-emerald-600">{completedRounds}</p>
-          <p className="text-xs text-neutral-500 mt-1">Etapas Realizadas</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
-          <p className="text-2xl font-semibold text-neutral-600">{(tournament?.totalRounds || 9) - completedRounds}</p>
-          <p className="text-xs text-neutral-500 mt-1">Etapas Restantes</p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className={`grid gap-4 mb-8 ${isMaster ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
-        <Link
-          to={`/admin/t/${slug}/classificacao`}
-          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
-        >
-          <h3 className="font-semibold text-neutral-900 mb-1">Editar Classificação</h3>
-          <p className="text-sm text-neutral-500">Ajustar pontos, participações e estatísticas de cada atleta.</p>
-        </Link>
+      {/* ── SEÇÃO COMPARTILHADA (ambas as categorias) ─────────── */}
+      <div className="grid md:grid-cols-2 gap-4 mb-4">
         <Link
           to={`/admin/t/${slug}/calendario`}
           className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
         >
           <h3 className="font-semibold text-neutral-900 mb-1">Calendário</h3>
-          <p className="text-sm text-neutral-500">Definir datas e status das etapas (compartilhado entre categorias)</p>
-        </Link>
-        <Link
-          to={`/admin/t/${slug}/etapas`}
-          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
-        >
-          <h3 className="font-semibold text-neutral-900 mb-1">Registrar Resultados</h3>
-          <p className="text-sm text-neutral-500">Registrar colocação, sets e games de uma etapa</p>
-        </Link>
-        <Link
-          to={`/admin/t/${slug}/participantes`}
-          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
-        >
-          <h3 className="font-semibold text-neutral-900 mb-1">Gerenciar Participantes</h3>
-          <p className="text-sm text-neutral-500">Adicionar, editar ou desativar participantes</p>
+          <p className="text-sm text-neutral-500">Definir datas e status das etapas — compartilhado entre Feminino e Masculino</p>
         </Link>
         {isMaster && (
           <Link
@@ -115,6 +72,7 @@ export default function Dashboard() {
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-8">
         <div className="p-5 border-b border-neutral-100 bg-neutral-50/50">
           <h2 className="font-semibold text-neutral-900">Funcionalidades</h2>
+          <p className="text-xs text-neutral-400 mt-0.5">Configurações globais — aplicam-se a ambas as categorias</p>
         </div>
         <div className="p-5">
           <div className="flex items-center justify-between">
@@ -140,7 +98,54 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent rounds */}
+      {/* ── SEÇÃO POR CATEGORIA ────────────────────────────────── */}
+      <div className="flex items-center gap-3 mb-5">
+        <span className="text-sm text-neutral-500 font-medium">Categoria:</span>
+        <GroupToggle group={group} onChange={setGroup} />
+      </div>
+
+      {/* Stats da categoria */}
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
+          <p className="text-2xl font-semibold text-neutral-900">{groupParticipants}</p>
+          <p className="text-xs text-neutral-500 mt-1">Participantes</p>
+        </div>
+        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
+          <p className="text-2xl font-semibold text-emerald-600">{completedRounds}</p>
+          <p className="text-xs text-neutral-500 mt-1">Etapas Realizadas</p>
+        </div>
+        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
+          <p className="text-2xl font-semibold text-neutral-600">{(tournament?.totalRounds || 9) - completedRounds}</p>
+          <p className="text-xs text-neutral-500 mt-1">Etapas Restantes</p>
+        </div>
+      </div>
+
+      {/* Ações da categoria */}
+      <div className="grid md:grid-cols-3 gap-4 mb-8">
+        <Link
+          to={`/admin/t/${slug}/classificacao`}
+          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
+        >
+          <h3 className="font-semibold text-neutral-900 mb-1">Editar Classificação</h3>
+          <p className="text-sm text-neutral-500">Ajustar pontos, participações e estatísticas de cada atleta.</p>
+        </Link>
+        <Link
+          to={`/admin/t/${slug}/etapas`}
+          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
+        >
+          <h3 className="font-semibold text-neutral-900 mb-1">Registrar Resultados</h3>
+          <p className="text-sm text-neutral-500">Registrar colocação, sets e games de uma etapa</p>
+        </Link>
+        <Link
+          to={`/admin/t/${slug}/participantes`}
+          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
+        >
+          <h3 className="font-semibold text-neutral-900 mb-1">Gerenciar Participantes</h3>
+          <p className="text-sm text-neutral-500">Adicionar, editar ou desativar participantes</p>
+        </Link>
+      </div>
+
+      {/* Etapas da categoria */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
         <div className="p-5 border-b border-neutral-100 bg-neutral-50/50">
           <h2 className="font-semibold text-neutral-900">
