@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
 import { useTournament } from '../../hooks/useTournament';
 import { useAdminGroup } from '../../hooks/useAdminGroup';
 import GroupToggle from '../../components/GroupToggle';
+import AdminBreadcrumb from '../../components/AdminBreadcrumb';
 
 export default function ClassificacaoAdmin() {
-  const { user, logout } = useAuth();
   const { slug, tournament, tApi } = useTournament();
   const { group, setGroup } = useAdminGroup();
   const [standings, setStandings] = useState([]);
@@ -86,28 +84,15 @@ export default function ClassificacaoAdmin() {
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
+        <AdminBreadcrumb items={[{ label: 'Torneios', href: '/admin/tournaments' }, { label: 'Painel', href: `/admin/t/${slug}` }, { label: 'Editar Classificação' }]} />
+        <div className="flex items-center justify-between mb-6 mt-1">
           <div>
             <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Editar Classificação</h1>
             <p className="text-sm text-neutral-500 mt-0.5">
               {tournament?.name} — grupo {group === 'F' ? 'Feminino' : 'Masculino'}. Edição manual, não altera resultados das etapas.
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <GroupToggle group={group} onChange={(g) => { setGroup(g); setEditingId(null); setForm({}); }} />
-            <Link
-              to={`/admin/t/${slug}`}
-              className="text-sm text-neutral-500 hover:text-neutral-900 font-medium"
-            >
-              ← Voltar ao painel
-            </Link>
-            <button
-              onClick={logout}
-              className="text-sm text-red-600 hover:text-red-700 font-medium"
-            >
-              Sair
-            </button>
-          </div>
+          <GroupToggle group={group} onChange={(g) => { setGroup(g); setEditingId(null); setForm({}); }} />
         </div>
 
         {message && (

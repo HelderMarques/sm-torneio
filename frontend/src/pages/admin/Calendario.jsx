@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom'; // mantido para o link ← Dashboard
 import { useTournament } from '../../hooks/useTournament';
+import AdminBreadcrumb from '../../components/AdminBreadcrumb';
 
 const statusOptions = [
   { value: 'SCHEDULED', label: 'Agendada' },
@@ -110,12 +110,10 @@ export default function Calendario() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Calendário do Torneio</h1>
-          <p className="text-xs text-neutral-400 mt-0.5">Datas e status compartilhados entre Feminino e Masculino</p>
-        </div>
-        <Link to={`/admin/t/${slug}`} className="text-sm text-neutral-500 hover:text-neutral-900 font-medium">← Dashboard</Link>
+      <AdminBreadcrumb items={[{ label: 'Torneios', href: '/admin/tournaments' }, { label: 'Painel', href: `/admin/t/${slug}` }, { label: 'Calendário' }]} />
+      <div className="mb-8 mt-1">
+        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Calendário do Torneio</h1>
+        <p className="text-xs text-neutral-400 mt-0.5">Datas e status compartilhados entre Feminino e Masculino</p>
       </div>
 
       {message && (

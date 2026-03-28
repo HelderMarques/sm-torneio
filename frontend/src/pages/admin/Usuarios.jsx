@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import api from '../../api/client';
+import AdminBreadcrumb from '../../components/AdminBreadcrumb';
 
 const STATUS_LABEL = { ACTIVE: 'Ativo', PENDING: 'Pendente', INACTIVE: 'Inativo' };
 const STATUS_CLS = {
@@ -77,14 +78,10 @@ export default function Usuarios() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Usuários</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Gerenciar administradores do painel</p>
-        </div>
-        <Link to="/admin/tournaments" className="text-sm text-neutral-500 hover:text-neutral-900 font-medium">
-          ← Painel
-        </Link>
+      <AdminBreadcrumb items={[{ label: 'Torneios', href: '/admin/tournaments' }, { label: 'Usuários' }]} />
+      <div className="mb-8 mt-1">
+        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Usuários</h1>
+        <p className="text-sm text-neutral-500 mt-0.5">Gerenciar administradores do painel</p>
       </div>
 
       {/* Feedback */}
