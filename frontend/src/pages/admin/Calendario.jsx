@@ -10,82 +10,95 @@ const statusOptions = [
 
 export default function Calendario() {
   const { slug, tournament, tApi } = useTournament();
-  const [rounds, setRounds] = useState([]);
+  // roundsF and roundsM are kept separate to allow individual PUT calls
+  const [roundsF, setRoundsF] = useState([]);
+  const [roundsM, setRoundsM] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ number: 1, date: '', group: 'F' });
-  const [savingId, setSavingId] = useState(null);
-  const [editState, setEditState] = useState({}); // roundId -> { date, status }
+  const [formDate, setFormDate] = useState('');
+  const [savingNum, setSavingNum] = useState(null);
+  const [editState, setEditState] = useState({}); // roundNumber -> { date, status }
 
   const load = () => {
-    tApi.get('/rounds?group=F')
-      .then((res) => setRounds(res.data))
+    setLoading(true);
+    Promise.all([tApi.get('/rounds?group=F'), tApi.get('/rounds?group=M')])
+      .then(([fRes, mRes]) => {
+        setRoundsF(fRes.data);
+        setRoundsM(mRes.data);
+      })
       .catch(() => setMessage('Erro ao carregar etapas'))
       .finally(() => setLoading(false));
   };
 
   useEffect(load, [slug]);
 
+  // Merge both groups into a single list keyed by round number
+  const mergedNumbers = [...new Set([...roundsF, ...roundsM].map((r) => r.number))].sort((a, b) => a - b);
+  const byNumber = (num, group) =>
+    (group === 'F' ? roundsF : roundsM).find((r) => r.number === num);
+
+  const totalRounds = tournament?.totalRounds ?? 9;
+  const usedNumbers = mergedNumbers;
+  const availableNumbers = Array.from({ length: totalRounds }, (_, i) => i + 1).filter(
+    (n) => !usedNumbers.includes(n)
+  );
+
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!form.date) {
-      setMessage('Escolha a data da etapa.');
-      return;
-    }
-    const num = availableNumbers.includes(form.number) ? form.number : (availableNumbers[0] ?? form.number);
+    if (!formDate) { setMessage('Escolha a data da etapa.'); return; }
+    const num = availableNumbers[0];
+    if (!num) return;
     try {
-      await tApi.post('/rounds', {
-        number: parseInt(num, 10),
-        date: form.date,
-        group: form.group,
-      });
-      setMessage('Etapa adicionada.');
+      // Create for both groups simultaneously
+      await Promise.all([
+        tApi.post('/rounds', { number: num, date: formDate, group: 'F' }),
+        tApi.post('/rounds', { number: num, date: formDate, group: 'M' }),
+      ]);
+      setMessage('Etapa adicionada para Feminino e Masculino.');
       setShowForm(false);
-      setForm({ number: 1, date: '', group: 'F' });
+      setFormDate('');
       load();
-      setTimeout(() => setMessage(''), 3000);
+      setTimeout(() => setMessage(''), 4000);
     } catch (err) {
       setMessage('Erro: ' + (err.response?.data?.error || err.message));
     }
   };
 
-  const getEdit = (round) => ({
-    date: editState[round.id]?.date ?? round.date,
-    status: editState[round.id]?.status ?? round.status,
-  });
-
-  const setEdit = (roundId, field, value) => {
-    setEditState((prev) => ({
-      ...prev,
-      [roundId]: { ...prev[roundId], [field]: value },
-    }));
+  const getEdit = (num) => {
+    // Use the F round as the source of truth for date/status display
+    const ref = byNumber(num, 'F') || byNumber(num, 'M');
+    return {
+      date: editState[num]?.date ?? ref?.date ?? '',
+      status: editState[num]?.status ?? ref?.status ?? 'SCHEDULED',
+    };
   };
 
-  const handleSaveRound = async (round) => {
-    const { date, status } = getEdit(round);
-    if (date === round.date && status === round.status) return;
-    setSavingId(round.id);
+  const setEdit = (num, field, value) => {
+    setEditState((prev) => ({ ...prev, [num]: { ...getEdit(num), [field]: value } }));
+  };
+
+  const handleSave = async (num) => {
+    const { date, status } = getEdit(num);
+    const rf = byNumber(num, 'F');
+    const rm = byNumber(num, 'M');
+    if (!rf && !rm) return;
+    setSavingNum(num);
     try {
-      await tApi.put(`/rounds/${round.id}`, { date, status });
+      const updates = [];
+      if (rf) updates.push(tApi.put(`/rounds/${rf.id}`, { date, status }));
+      if (rm) updates.push(tApi.put(`/rounds/${rm.id}`, { date, status }));
+      await Promise.all(updates);
       setMessage('Etapa atualizada.');
-      setEditState((prev) => {
-        const next = { ...prev };
-        delete next[round.id];
-        return next;
-      });
+      setEditState((prev) => { const next = { ...prev }; delete next[num]; return next; });
       load();
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       setMessage('Erro: ' + (err.response?.data?.error || err.message));
     } finally {
-      setSavingId(null);
+      setSavingNum(null);
     }
   };
-
-  const totalRounds = tournament?.totalRounds ?? 9;
-  const usedNumbers = rounds.map((r) => r.number);
-  const availableNumbers = Array.from({ length: totalRounds }, (_, i) => i + 1).filter((n) => !usedNumbers.includes(n));
 
   if (loading) {
     return (
@@ -98,7 +111,10 @@ export default function Calendario() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Calendário do Torneio</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Calendário do Torneio</h1>
+          <p className="text-xs text-neutral-400 mt-0.5">Datas e status compartilhados entre Feminino e Masculino</p>
+        </div>
         <Link to={`/admin/t/${slug}`} className="text-sm text-neutral-500 hover:text-neutral-900 font-medium">← Dashboard</Link>
       </div>
 
@@ -108,40 +124,40 @@ export default function Calendario() {
         </div>
       )}
 
+      {/* Nova etapa */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 p-6 mb-6">
-        <h2 className="font-semibold text-neutral-900 mb-4">Nova etapa</h2>
+        <h2 className="font-semibold text-neutral-900 mb-1">Nova etapa</h2>
+        <p className="text-xs text-neutral-400 mb-4">Cria a etapa {availableNumbers[0] ? `${availableNumbers[0]}ª` : ''} para Feminino e Masculino ao mesmo tempo.</p>
         {showForm ? (
           <form onSubmit={handleCreate} className="flex flex-wrap gap-4 items-end">
             <div>
-              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Número da etapa</label>
-              <select
-                value={availableNumbers.includes(form.number) ? form.number : (availableNumbers[0] ?? '')}
-                onChange={(e) => setForm({ ...form, number: parseInt(e.target.value, 10) })}
-                className="border border-neutral-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
-              >
-                {availableNumbers.length === 0 ? (
-                  <option value="">Todas criadas</option>
-                ) : (
-                  availableNumbers.map((n) => (
-                    <option key={n} value={n}>{n}ª</option>
-                  ))
-                )}
-              </select>
+              <label className="block text-xs font-medium text-neutral-600 mb-1.5">Número</label>
+              <div className="border border-neutral-200 rounded-xl px-4 py-2 text-sm bg-neutral-50 text-neutral-600">
+                {availableNumbers[0] ?? '—'}ª
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-neutral-600 mb-1.5">Data</label>
               <input
                 type="date"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                value={formDate}
+                onChange={(e) => setFormDate(e.target.value)}
                 className="border border-neutral-200 rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
               />
             </div>
             <div className="flex gap-2">
-              <button type="submit" disabled={availableNumbers.length === 0 || !form.date} className="bg-[#9B2D3E] hover:bg-[#8B2942] disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-medium">
+              <button
+                type="submit"
+                disabled={availableNumbers.length === 0 || !formDate}
+                className="bg-[#9B2D3E] hover:bg-[#8B2942] disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-medium"
+              >
                 Adicionar
               </button>
-              <button type="button" onClick={() => { setShowForm(false); setForm({ number: 1, date: '', group: 'F' }); }} className="text-neutral-500 text-sm font-medium hover:text-neutral-700">
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setFormDate(''); }}
+                className="text-neutral-500 text-sm font-medium hover:text-neutral-700"
+              >
                 Cancelar
               </button>
             </div>
@@ -156,60 +172,82 @@ export default function Calendario() {
             + Nova etapa
           </button>
         )}
-        {availableNumbers.length === 0 && rounds.length > 0 && (
+        {availableNumbers.length === 0 && mergedNumbers.length > 0 && (
           <p className="text-sm text-neutral-500 mt-2">Todas as {totalRounds} etapas já foram criadas.</p>
         )}
       </div>
 
+      {/* Lista unificada */}
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
         <div className="p-5 border-b border-neutral-100 bg-neutral-50/50">
-          <h2 className="font-semibold text-neutral-900">Etapas — Grupo Feminino</h2>
+          <h2 className="font-semibold text-neutral-900">Etapas</h2>
         </div>
         <div className="divide-y divide-neutral-100">
-          {rounds.length === 0 ? (
+          {mergedNumbers.length === 0 ? (
             <div className="p-8 text-center text-neutral-500 text-sm">Nenhuma etapa no calendário. Adicione a primeira acima.</div>
           ) : (
-            rounds.map((round) => {
-              const { date, status } = getEdit(round);
-              const changed = date !== round.date || status !== round.status;
+            mergedNumbers.map((num) => {
+              const { date, status } = getEdit(num);
+              const rf = byNumber(num, 'F');
+              const rm = byNumber(num, 'M');
+              const ref = rf || rm;
+              const changed = date !== ref?.date || status !== ref?.status;
               return (
-                <div key={round.id} className="p-4 flex flex-wrap items-center gap-4 hover:bg-neutral-50/50">
-                  <span className="bg-[#9B2D3E] text-white w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold">
-                    {round.number}
+                <div key={num} className="p-4 flex flex-wrap items-center gap-4 hover:bg-neutral-50/50">
+                  <span className="bg-[#9B2D3E] text-white w-10 h-10 rounded-xl flex items-center justify-center text-sm font-semibold shrink-0">
+                    {num}
                   </span>
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
                     <input
                       type="date"
                       value={date}
-                      onChange={(e) => setEdit(round.id, 'date', e.target.value)}
+                      onChange={(e) => setEdit(num, 'date', e.target.value)}
                       className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm w-40 focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
                     />
                     <select
                       value={status}
-                      onChange={(e) => setEdit(round.id, 'status', e.target.value)}
+                      onChange={(e) => setEdit(num, 'status', e.target.value)}
                       className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
                     >
                       {statusOptions.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
+                    {/* Badges indicando quais grupos existem */}
+                    <div className="flex gap-1">
+                      {rf && <span className="text-xs px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-medium">F</span>}
+                      {rm && <span className="text-xs px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-medium">M</span>}
+                    </div>
                     {changed && (
                       <button
                         type="button"
-                        onClick={() => handleSaveRound(round)}
-                        disabled={savingId === round.id}
+                        onClick={() => handleSave(num)}
+                        disabled={savingNum === num}
                         className="text-sm font-medium text-[#9B2D3E] hover:text-[#8B2942] disabled:opacity-50"
                       >
-                        {savingId === round.id ? 'Salvando...' : 'Salvar'}
+                        {savingNum === num ? 'Salvando...' : 'Salvar'}
                       </button>
                     )}
                   </div>
-                  <Link
-                    to={`/admin/t/${slug}/etapa/${round.id}`}
-                    className="bg-[#9B2D3E] hover:bg-[#8B2942] text-white px-4 py-2 rounded-xl text-sm font-medium shrink-0"
-                  >
-                    {round.status === 'COMPLETED' ? 'Editar resultados' : 'Registrar'}
-                  </Link>
+                  {/* Links para registrar resultados por grupo */}
+                  <div className="flex gap-2 shrink-0">
+                    {rf && (
+                      <Link
+                        to={`/admin/t/${slug}/etapa/${rf.id}`}
+                        className="border border-neutral-200 text-neutral-600 hover:bg-neutral-50 px-3 py-1.5 rounded-lg text-xs font-medium"
+                      >
+                        {rf.status === 'COMPLETED' ? 'Editar F' : 'Registrar F'}
+                      </Link>
+                    )}
+                    {rm && (
+                      <Link
+                        to={`/admin/t/${slug}/etapa/${rm.id}`}
+                        className="border border-neutral-200 text-neutral-600 hover:bg-neutral-50 px-3 py-1.5 rounded-lg text-xs font-medium"
+                      >
+                        {rm.status === 'COMPLETED' ? 'Editar M' : 'Registrar M'}
+                      </Link>
+                    )}
+                  </div>
                 </div>
               );
             })
