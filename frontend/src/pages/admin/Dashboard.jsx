@@ -40,15 +40,21 @@ export default function Dashboard() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [resendingId, setResendingId] = useState(null);
   const [userMsg, setUserMsg] = useState('');
   const [userErr, setUserErr] = useState('');
+
+  const flash = (setFn, msg, ms = 5000) => {
+    setFn(msg);
+    setTimeout(() => setFn(''), ms);
+  };
 
   const loadUsers = () => {
     if (!isMaster) return;
     setUsersLoading(true);
     api.get('/admin/users')
       .then((r) => setUsers(r.data))
-      .catch(() => setUserErr('Erro ao carregar usuários.'))
+      .catch(() => flash(setUserErr, 'Erro ao carregar usuários.'))
       .finally(() => setUsersLoading(false));
   };
 
@@ -60,23 +66,26 @@ export default function Dashboard() {
     setInviting(true);
     try {
       await api.post('/admin/users', { email: inviteEmail, name: inviteName || undefined });
-      setUserMsg(`Convite enviado para ${inviteEmail}`);
+      flash(setUserMsg, `Convite registrado para ${inviteEmail}. O email será enviado em instantes.`);
       setInviteEmail(''); setInviteName('');
       loadUsers();
     } catch (err) {
-      setUserErr(err.response?.data?.error || 'Erro ao enviar convite.');
+      flash(setUserErr, err.response?.data?.error || 'Erro ao enviar convite.');
     } finally {
       setInviting(false);
     }
   };
 
-  const resendInvite = async (id) => {
+  const resendInvite = async (id, email) => {
     setUserErr(''); setUserMsg('');
+    setResendingId(id);
     try {
       await api.post(`/admin/users/${id}/resend-invite`);
-      setUserMsg('Convite reenviado.');
+      flash(setUserMsg, `Convite reenviado para ${email}.`);
     } catch (err) {
-      setUserErr(err.response?.data?.error || 'Erro ao reenviar convite.');
+      flash(setUserErr, err.response?.data?.error || 'Erro ao reenviar convite.');
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -224,10 +233,11 @@ export default function Dashboard() {
                       <div className="shrink-0 flex items-center gap-2">
                         {u.status === 'PENDING' && (
                           <button
-                            onClick={() => resendInvite(u.id)}
-                            className="text-xs text-neutral-500 hover:text-[#9B2D3E] font-medium px-3 py-1.5 border border-neutral-200 rounded-lg"
+                            onClick={() => resendInvite(u.id, u.email)}
+                            disabled={resendingId === u.id}
+                            className="text-xs text-neutral-500 hover:text-[#9B2D3E] font-medium px-3 py-1.5 border border-neutral-200 rounded-lg disabled:opacity-50"
                           >
-                            Reenviar convite
+                            {resendingId === u.id ? 'Enviando…' : 'Reenviar convite'}
                           </button>
                         )}
                         {u.status !== 'PENDING' && (

@@ -8,21 +8,27 @@ function createTransport() {
     port: Number(SMTP_PORT) || 587,
     secure: Number(SMTP_PORT) === 465,
     auth: SMTP_USER ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
+    connectionTimeout: 8000,  // 8s para conectar
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
   });
 }
 
+/**
+ * Envia o email de convite de forma não-bloqueante (fire-and-forget).
+ * A rota responde imediatamente; erros de envio são logados no console.
+ */
 async function sendInviteEmail({ to, name, inviteUrl }) {
   const transport = createTransport();
-  const fromName = 'SM Torneio';
+  const fromName  = 'SM Torneio';
   const fromEmail = process.env.SMTP_FROM || 'noreply@sm-ttc.com.br';
 
   if (!transport) {
-    // Sem SMTP configurado: loga o link no console (útil em dev)
-    console.log(`\n[INVITE] Para: ${to}\nLink: ${inviteUrl}\n`);
+    console.log(`\n[INVITE] Sem SMTP configurado.\nPara: ${to}\nLink: ${inviteUrl}\n`);
     return;
   }
 
-  await transport.sendMail({
+  const mailOptions = {
     from: `"${fromName}" <${fromEmail}>`,
     to,
     subject: 'Convite para o painel administrativo — SM Torneio',
@@ -37,8 +43,18 @@ async function sendInviteEmail({ to, name, inviteUrl }) {
           Definir senha
         </a>
         <p style="color:#888;font-size:12px">Se você não esperava este convite, ignore este e-mail.</p>
+        <p style="color:#aaa;font-size:11px;word-break:break-all">Link direto: ${inviteUrl}</p>
       </div>
     `,
+  };
+
+  // Fire-and-forget: não bloqueia a resposta HTTP
+  transport.sendMail(mailOptions).then((info) => {
+    console.log(`[email] Convite enviado para ${to} — messageId: ${info.messageId}`);
+  }).catch((err) => {
+    console.error(`[email] ERRO ao enviar para ${to}: ${err.message}`);
+    // Fallback: loga o link para recuperação manual via Railway logs
+    console.log(`[INVITE-FALLBACK] Para: ${to}\nLink: ${inviteUrl}`);
   });
 }
 
