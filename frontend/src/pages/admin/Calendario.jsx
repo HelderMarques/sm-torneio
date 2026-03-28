@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom'; // mantido para o link ← Dashboard
 import { useTournament } from '../../hooks/useTournament';
 
 const statusOptions = [
@@ -213,11 +213,6 @@ export default function Calendario() {
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
-                    {/* Badges indicando quais grupos existem */}
-                    <div className="flex gap-1">
-                      {rf && <span className="text-xs px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-medium">F</span>}
-                      {rm && <span className="text-xs px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-medium">M</span>}
-                    </div>
                     {changed && (
                       <button
                         type="button"
@@ -227,25 +222,6 @@ export default function Calendario() {
                       >
                         {savingNum === num ? 'Salvando...' : 'Salvar'}
                       </button>
-                    )}
-                  </div>
-                  {/* Links para registrar resultados por grupo */}
-                  <div className="flex gap-2 shrink-0">
-                    {rf && (
-                      <Link
-                        to={`/admin/t/${slug}/etapa/${rf.id}`}
-                        className="border border-neutral-200 text-neutral-600 hover:bg-neutral-50 px-3 py-1.5 rounded-lg text-xs font-medium"
-                      >
-                        {rf.status === 'COMPLETED' ? 'Editar F' : 'Registrar F'}
-                      </Link>
-                    )}
-                    {rm && (
-                      <Link
-                        to={`/admin/t/${slug}/etapa/${rm.id}`}
-                        className="border border-neutral-200 text-neutral-600 hover:bg-neutral-50 px-3 py-1.5 rounded-lg text-xs font-medium"
-                      >
-                        {rm.status === 'COMPLETED' ? 'Editar M' : 'Registrar M'}
-                      </Link>
                     )}
                   </div>
                 </div>
