@@ -92,12 +92,13 @@ function AppContent() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Dashboard />} />
+        <Route index element={<Navigate to="classificacao" replace />} />
         <Route path="classificacao" element={<ClassificacaoAdmin />} />
         <Route path="calendario" element={<CalendarioAdmin />} />
         <Route path="etapas" element={<Etapas />} />
         <Route path="etapa/:id" element={<EtapaDetail />} />
         <Route path="participantes" element={<Participantes />} />
+        <Route path="configuracoes" element={<Dashboard />} />
       </Route>
 
       {/* Fallback */}
