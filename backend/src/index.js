@@ -3,6 +3,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const seedMasterUser = require('./seed');
 
 const authRoutes = require('./routes/auth');
 const adminUserRoutes = require('./routes/adminUsers');
@@ -61,6 +62,7 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`SM Torneio API running on port ${PORT}`);
+  await seedMasterUser();
 });
