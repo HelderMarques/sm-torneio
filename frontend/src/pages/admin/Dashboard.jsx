@@ -1,173 +1,256 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTournament } from '../../hooks/useTournament';
-import { useAdminGroup } from '../../hooks/useAdminGroup';
-import GroupToggle from '../../components/GroupToggle';
+import api from '../../api/client';
+
+const STATUS_LABEL = { ACTIVE: 'Ativo', PENDING: 'Pendente', INACTIVE: 'Inativo' };
+const STATUS_CLS = {
+  ACTIVE: 'bg-emerald-50 text-emerald-700',
+  PENDING: 'bg-amber-50 text-amber-700',
+  INACTIVE: 'bg-neutral-100 text-neutral-400',
+};
+
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { tournament, slug, tApi } = useTournament();
-  const { group, setGroup } = useAdminGroup();
-  const [rounds, setRounds] = useState([]);
-  const [participants, setParticipants] = useState([]);
-
-  useEffect(() => {
-    Promise.all([
-      tApi.get('/rounds'),
-      tApi.get('/participants'),
-    ]).then(([rRes, pRes]) => {
-      setRounds(rRes.data);
-      setParticipants(pRes.data);
-    });
-  }, [slug]);
-
-  const groupRounds = rounds.filter((r) => r.group === group);
-  const completedRounds = groupRounds.filter((r) => r.status === 'COMPLETED').length;
-  const groupParticipants = participants.filter((p) => p.group === group).length;
-
+  const { tournament, slug } = useTournament();
   const isMaster = user?.role === 'MASTER';
 
+  // ── Feature flags ──────────────────────────────────────────
+  const [toggling, setToggling] = useState(false);
+
+  const toggleSimulate = async () => {
+    setToggling(true);
+    const token = localStorage.getItem('sm_token');
+    await fetch(`/api/tournaments/${slug}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ simulateEnabled: !tournament?.simulateEnabled }),
+    });
+    window.location.reload();
+  };
+
+  // ── User management (master only) ─────────────────────────
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [userMsg, setUserMsg] = useState('');
+  const [userErr, setUserErr] = useState('');
+
+  const loadUsers = () => {
+    if (!isMaster) return;
+    setUsersLoading(true);
+    api.get('/admin/users')
+      .then((r) => setUsers(r.data))
+      .catch(() => setUserErr('Erro ao carregar usuários.'))
+      .finally(() => setUsersLoading(false));
+  };
+
+  useEffect(() => { loadUsers(); }, [isMaster]);
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    setUserErr(''); setUserMsg('');
+    setInviting(true);
+    try {
+      await api.post('/admin/users', { email: inviteEmail, name: inviteName || undefined });
+      setUserMsg(`Convite enviado para ${inviteEmail}`);
+      setInviteEmail(''); setInviteName('');
+      loadUsers();
+    } catch (err) {
+      setUserErr(err.response?.data?.error || 'Erro ao enviar convite.');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const resendInvite = async (id) => {
+    setUserErr(''); setUserMsg('');
+    try {
+      await api.post(`/admin/users/${id}/resend-invite`);
+      setUserMsg('Convite reenviado.');
+    } catch (err) {
+      setUserErr(err.response?.data?.error || 'Erro ao reenviar convite.');
+    }
+  };
+
+  const toggleStatus = async (u) => {
+    const newStatus = u.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    setUserErr(''); setUserMsg('');
+    try {
+      await api.patch(`/admin/users/${u.id}/status`, { status: newStatus });
+      loadUsers();
+    } catch (err) {
+      setUserErr(err.response?.data?.error || 'Erro ao alterar status.');
+    }
+  };
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Painel Administrativo</h1>
-        <p className="text-sm text-neutral-500 mt-0.5">Bem-vindo, {user?.name}</p>
+        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">Configurações</h1>
+        <p className="text-sm text-neutral-500 mt-0.5">{tournament?.name}</p>
       </div>
 
-      {/* ── SEÇÃO COMPARTILHADA (ambas as categorias) ─────────── */}
-      <div className="grid md:grid-cols-2 gap-4 mb-4">
-        <Link
-          to={`/admin/t/${slug}/calendario`}
-          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
-        >
-          <h3 className="font-semibold text-neutral-900 mb-1">Calendário</h3>
-          <p className="text-sm text-neutral-500">Definir datas e status das etapas — compartilhado entre Feminino e Masculino</p>
-        </Link>
-        {isMaster && (
-          <Link
-            to="/admin/usuarios"
-            className="bg-white rounded-2xl p-6 border border-[#9B2D3E]/20 hover:shadow-md hover:border-[#9B2D3E]/40 transition-all block"
-          >
-            <h3 className="font-semibold text-[#9B2D3E] mb-1">Usuários</h3>
-            <p className="text-sm text-neutral-500">Convidar e gerenciar administradores do painel</p>
-          </Link>
-        )}
-      </div>
-
-      {/* Feature flags */}
-      <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-8">
-        <div className="p-5 border-b border-neutral-100 bg-neutral-50/50">
-          <h2 className="font-semibold text-neutral-900">Funcionalidades</h2>
-          <p className="text-xs text-neutral-400 mt-0.5">Configurações globais — aplicam-se a ambas as categorias</p>
-        </div>
-        <div className="p-5">
-          <div className="flex items-center justify-between">
+      {/* ── Funcionalidades ───────────────────────────────────── */}
+      <section className="mb-8">
+        <h2 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
+          Funcionalidades
+        </h2>
+        <div className="bg-white rounded-2xl border border-neutral-200/80 divide-y divide-neutral-100">
+          <div className="flex items-center justify-between px-5 py-4">
             <div>
               <p className="font-medium text-neutral-900 text-sm">Simular etapa</p>
-              <p className="text-xs text-neutral-500 mt-0.5">Exibe o botão "Simular etapa" na página inicial</p>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Exibe o botão "Simular etapa" na página pública do torneio
+              </p>
             </div>
             <button
-              onClick={async () => {
-                const token = localStorage.getItem('sm_token');
-                await fetch(`/api/tournaments/${slug}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                  body: JSON.stringify({ simulateEnabled: !tournament?.simulateEnabled }),
-                });
-                window.location.reload();
-              }}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${tournament?.simulateEnabled ? 'bg-[#9B2D3E]' : 'bg-neutral-200'}`}
+              onClick={toggleSimulate}
+              disabled={toggling}
+              aria-label="Toggle simular etapa"
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
+                tournament?.simulateEnabled ? 'bg-[#9B2D3E]' : 'bg-neutral-200'
+              }`}
             >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${tournament?.simulateEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  tournament?.simulateEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
             </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ── SEÇÃO POR CATEGORIA ────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-5">
-        <span className="text-sm text-neutral-500 font-medium">Categoria:</span>
-        <GroupToggle group={group} onChange={setGroup} />
-      </div>
-
-      {/* Stats da categoria */}
-      <div className="grid grid-cols-3 gap-4 mb-5">
-        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
-          <p className="text-2xl font-semibold text-neutral-900">{groupParticipants}</p>
-          <p className="text-xs text-neutral-500 mt-1">Participantes</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
-          <p className="text-2xl font-semibold text-emerald-600">{completedRounds}</p>
-          <p className="text-xs text-neutral-500 mt-1">Etapas Realizadas</p>
-        </div>
-        <div className="bg-white rounded-2xl p-6 border border-neutral-200/80 text-center">
-          <p className="text-2xl font-semibold text-neutral-600">{(tournament?.totalRounds || 9) - completedRounds}</p>
-          <p className="text-xs text-neutral-500 mt-1">Etapas Restantes</p>
-        </div>
-      </div>
-
-      {/* Ações da categoria */}
-      <div className="grid md:grid-cols-3 gap-4 mb-8">
-        <Link
-          to={`/admin/t/${slug}/classificacao`}
-          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
-        >
-          <h3 className="font-semibold text-neutral-900 mb-1">Editar Classificação</h3>
-          <p className="text-sm text-neutral-500">Ajustar pontos, participações e estatísticas de cada atleta.</p>
-        </Link>
-        <Link
-          to={`/admin/t/${slug}/etapas`}
-          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
-        >
-          <h3 className="font-semibold text-neutral-900 mb-1">Registrar Resultados</h3>
-          <p className="text-sm text-neutral-500">Registrar colocação, sets e games de uma etapa</p>
-        </Link>
-        <Link
-          to={`/admin/t/${slug}/participantes`}
-          className="bg-white rounded-2xl p-6 border border-neutral-200/80 hover:shadow-md hover:border-neutral-300/60 transition-all block"
-        >
-          <h3 className="font-semibold text-neutral-900 mb-1">Gerenciar Participantes</h3>
-          <p className="text-sm text-neutral-500">Adicionar, editar ou desativar participantes</p>
-        </Link>
-      </div>
-
-      {/* Etapas da categoria */}
-      <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
-        <div className="p-5 border-b border-neutral-100 bg-neutral-50/50">
-          <h2 className="font-semibold text-neutral-900">
-            Etapas — {group === 'F' ? 'Feminino' : 'Masculino'}
+      {/* ── Gestão de usuários (master only) ─────────────────── */}
+      {isMaster && (
+        <section>
+          <h2 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3">
+            Gestão de Usuários
           </h2>
-        </div>
-        <div className="divide-y divide-neutral-100">
-          {groupRounds.map((round) => (
-            <div key={round.id} className="p-4 flex items-center justify-between hover:bg-neutral-50/50">
-              <div>
-                <span className="font-medium text-neutral-900">{round.number}ª Etapa</span>
-                <span className="text-sm text-neutral-500 ml-2">
-                  {new Date(round.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                  round.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
-                  round.status === 'CANCELLED' ? 'bg-red-50 text-red-700' :
-                  'bg-neutral-100 text-neutral-600'
-                }`}>
-                  {round.status === 'COMPLETED' ? 'Realizada' :
-                   round.status === 'CANCELLED' ? 'Cancelada' : 'Agendada'}
-                </span>
-                <Link
-                  to={`/admin/t/${slug}/etapa/${round.id}`}
-                  className="text-sm font-medium text-[#9B2D3E] hover:text-[#8B2942]"
-                >
-                  {round.status === 'COMPLETED' ? 'Editar' : 'Registrar'}
-                </Link>
-              </div>
+
+          {/* Feedback */}
+          {userMsg && (
+            <div className="mb-4 px-4 py-3 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-xl">
+              {userMsg}
             </div>
-          ))}
-        </div>
-      </div>
+          )}
+          {userErr && (
+            <div className="mb-4 px-4 py-3 bg-red-50 border border-red-100 text-red-700 text-sm rounded-xl">
+              {userErr}
+            </div>
+          )}
+
+          {/* Invite form */}
+          <div className="bg-white rounded-2xl border border-neutral-200/80 p-5 mb-4">
+            <p className="font-medium text-neutral-900 text-sm mb-3">Convidar novo administrador</p>
+            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-2.5">
+              <input
+                type="text"
+                placeholder="Nome (opcional)"
+                value={inviteName}
+                onChange={(e) => setInviteName(e.target.value)}
+                className="flex-1 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#9B2D3E]/50"
+              />
+              <input
+                type="email"
+                placeholder="E-mail *"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                required
+                className="flex-1 border border-neutral-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#9B2D3E]/50"
+              />
+              <button
+                type="submit"
+                disabled={inviting}
+                className="bg-[#9B2D3E] hover:bg-[#8B2942] text-white px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 shrink-0"
+              >
+                {inviting ? 'Enviando…' : 'Convidar'}
+              </button>
+            </form>
+            <p className="text-xs text-neutral-400 mt-2">
+              O convidado receberá um link válido por 72 horas para definir sua senha.
+            </p>
+          </div>
+
+          {/* Users list */}
+          <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-neutral-100 bg-neutral-50/50">
+              <p className="font-semibold text-neutral-900 text-sm">Administradores</p>
+            </div>
+            {usersLoading ? (
+              <div className="flex justify-center py-10">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-neutral-200 border-t-neutral-500" />
+              </div>
+            ) : (
+              <div className="divide-y divide-neutral-100">
+                {users.map((u) => (
+                  <div key={u.id} className="px-5 py-3.5 flex items-center gap-3">
+                    {/* Avatar */}
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-bold text-neutral-500">
+                      {u.name?.[0]?.toUpperCase() || '?'}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-medium text-neutral-900 text-sm truncate">{u.name}</p>
+                        {u.role === 'MASTER' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#9B2D3E]/10 text-[#9B2D3E] font-semibold">
+                            Master
+                          </span>
+                        )}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_CLS[u.status]}`}>
+                          {STATUS_LABEL[u.status]}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-400 truncate">{u.email}</p>
+                      {u.lastLoginAt && (
+                        <p className="text-[10px] text-neutral-300 mt-0.5">
+                          Último acesso: {fmtDate(u.lastLoginAt)}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    {u.role !== 'MASTER' && (
+                      <div className="shrink-0 flex items-center gap-2">
+                        {u.status === 'PENDING' && (
+                          <button
+                            onClick={() => resendInvite(u.id)}
+                            className="text-xs text-neutral-500 hover:text-[#9B2D3E] font-medium px-3 py-1.5 border border-neutral-200 rounded-lg"
+                          >
+                            Reenviar convite
+                          </button>
+                        )}
+                        {u.status !== 'PENDING' && (
+                          <button
+                            onClick={() => toggleStatus(u)}
+                            className={`text-xs font-medium px-3 py-1.5 rounded-lg border ${
+                              u.status === 'ACTIVE'
+                                ? 'text-red-600 border-red-100 hover:bg-red-50'
+                                : 'text-emerald-600 border-emerald-100 hover:bg-emerald-50'
+                            }`}
+                          >
+                            {u.status === 'ACTIVE' ? 'Desativar' : 'Reativar'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
