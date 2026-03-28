@@ -133,4 +133,20 @@ router.patch('/:id/status', requireMaster, async (req, res) => {
   }
 });
 
+// DELETE /api/admin/users/:id — excluir usuário (master only, não pode excluir MASTER)
+router.delete('/:id', requireMaster, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (user.role === 'MASTER') {
+      return res.status(403).json({ error: 'O usuário master não pode ser excluído' });
+    }
+    await prisma.user.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Usuário excluído' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 module.exports = router;
