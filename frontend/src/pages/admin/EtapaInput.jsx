@@ -300,6 +300,79 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
   );
 }
 
+// ── Test data generator ───────────────────────────────────────────────
+/**
+ * Pairs participants by standings order: 1st with last, 2nd with 2nd-to-last…
+ * If odd count, the middle player becomes a sorteado.
+ * Generates random valid game scores (no ties).
+ */
+function buildTestData(orderedNames, pairsPerCourt = 4) {
+  const n = orderedNames.length;
+  const allPairs = [];
+
+  // Pair by rank: top with bottom
+  const half = Math.floor(n / 2);
+  for (let i = 0; i < half; i++) {
+    allPairs.push({ playerA: orderedNames[i], playerB: orderedNames[n - 1 - i] });
+  }
+
+  const sorteados = [];
+  if (n % 2 !== 0) {
+    sorteados.push({
+      id: Math.random().toString(36).slice(2),
+      name: orderedNames[half],
+      type: 'sorteio',
+    });
+  }
+
+  // Split pairs into courts
+  const courtCount = Math.max(1, Math.ceil(allPairs.length / pairsPerCourt));
+  const courts = [];
+  for (let c = 0; c < courtCount; c++) {
+    const courtPairs = allPairs.slice(c * pairsPerCourt, (c + 1) * pairsPerCourt);
+    if (!courtPairs.length) continue;
+    const numGames = gamesForPairs(courtPairs.length);
+
+    // Generate random bracket-style games
+    const games = [];
+    // Track which pairs are in WB / LB naively for realistic matchups
+    const losses = new Array(courtPairs.length).fill(0);
+    const eliminated = [];
+
+    for (let g = 0; g < numGames; g++) {
+      // Find two pairs that haven't both been eliminated
+      const active = courtPairs.map((_, i) => i).filter((i) => !eliminated.includes(i));
+      const a = active[g % active.length] ?? 0;
+      const b = active[(g + 1) % active.length] ?? (a === 0 ? 1 : 0);
+      const actualA = a !== b ? a : (a + 1) % courtPairs.length;
+
+      const winnerIsA = Math.random() > 0.5;
+      const winScore = 5;
+      const loseScore = Math.floor(Math.random() * 5); // 0–4
+
+      games.push({
+        pairAIndex: actualA,
+        pairBIndex: b,
+        scoreA: winnerIsA ? winScore : loseScore,
+        scoreB: winnerIsA ? loseScore : winScore,
+      });
+
+      const loser = winnerIsA ? b : actualA;
+      losses[loser]++;
+      if (losses[loser] >= 2 && !eliminated.includes(loser)) eliminated.push(loser);
+    }
+
+    courts.push({
+      id: Math.random().toString(36).slice(2),
+      label: courtCount === 1 ? 'Quadra Teste' : `Quadra Teste ${c + 1}`,
+      pairs: courtPairs,
+      games,
+    });
+  }
+
+  return { courts, sorteados };
+}
+
 // ── Main page ─────────────────────────────────────────────────────────
 const newCourt = () => ({
   id: Math.random().toString(36).slice(2),
@@ -316,7 +389,7 @@ const newCourt = () => ({
 
 export default function EtapaInput() {
   const { id } = useParams();
-  const { slug, tApi } = useTournament();
+  const { slug, tApi, tournament } = useTournament();
   const navigate = useNavigate();
 
   const [round, setRound] = useState(null);
@@ -327,6 +400,7 @@ export default function EtapaInput() {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState([]);
   const [result, setResult] = useState(null); // success snapshot
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     Promise.all([tApi.get(`/rounds/${id}`), tApi.get('/participants')])
@@ -407,6 +481,39 @@ export default function EtapaInput() {
     });
 
     return errs;
+  };
+
+  const handleGenerateTest = async () => {
+    setGenerating(true);
+    try {
+      // Get participants sorted by current standings (1º → último)
+      const standingsRes = await tApi.get(`/standings/${round.group}`);
+      const standings = standingsRes.data || [];
+
+      let orderedNames;
+      if (standings.length > 0) {
+        // Standings already sorted by position
+        orderedNames = standings
+          .map((s) => participants.find((p) => p.id === s.participantId)?.name)
+          .filter(Boolean);
+        // Append any participants not yet in standings
+        const inStandings = new Set(standings.map((s) => s.participantId));
+        participants.forEach((p) => {
+          if (!inStandings.has(p.id)) orderedNames.push(p.name);
+        });
+      } else {
+        orderedNames = participants.map((p) => p.name);
+      }
+
+      const { courts: genCourts, sorteados: genSorteados } = buildTestData(orderedNames);
+      setCourts(genCourts);
+      setSorteados(genSorteados);
+      setErrors([]);
+    } catch (err) {
+      setErrors(['Erro ao gerar dados: ' + (err.response?.data?.error || err.message)]);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -540,6 +647,27 @@ export default function EtapaInput() {
           })}
         </p>
       </div>
+
+      {/* Test data generator — only when feature flag is on */}
+      {tournament?.testResultEnabled && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 mb-6 flex items-start gap-4">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-900">Modo Teste</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Gera duplas automaticamente (1º com último, 2º com penúltimo…) e resultados aleatórios.
+              Substitui o conteúdo atual do formulário.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleGenerateTest}
+            disabled={generating || participants.length < 2}
+            className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors"
+          >
+            {generating ? 'Gerando…' : 'Gerar dados'}
+          </button>
+        </div>
+      )}
 
       {/* Errors */}
       {errors.length > 0 && (

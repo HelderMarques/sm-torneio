@@ -23,16 +23,18 @@ export default function Dashboard() {
   // ── Feature flags ──────────────────────────────────────────
   const [toggling, setToggling] = useState(false);
 
-  const toggleSimulate = async () => {
+  const toggle = async (field, currentValue) => {
     setToggling(true);
     const token = localStorage.getItem('sm_token');
     await fetch(`/api/tournaments/${slug}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ simulateEnabled: !tournament?.simulateEnabled }),
+      body: JSON.stringify({ [field]: !currentValue }),
     });
     window.location.reload();
   };
+
+  const toggleSimulate = () => toggle('simulateEnabled', tournament?.simulateEnabled);
 
   // ── User management (master only) ─────────────────────────
   const [users, setUsers] = useState([]);
@@ -125,28 +127,43 @@ export default function Dashboard() {
           Funcionalidades
         </h2>
         <div className="bg-white rounded-2xl border border-neutral-200/80 divide-y divide-neutral-100">
-          <div className="flex items-center justify-between px-5 py-4">
-            <div>
-              <p className="font-medium text-neutral-900 text-sm">Simular etapa</p>
-              <p className="text-xs text-neutral-400 mt-0.5">
-                Exibe o botão "Simular etapa" na página pública do torneio
-              </p>
-            </div>
-            <button
-              onClick={toggleSimulate}
-              disabled={toggling}
-              aria-label="Toggle simular etapa"
-              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
-                tournament?.simulateEnabled ? 'bg-[#9B2D3E]' : 'bg-neutral-200'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                  tournament?.simulateEnabled ? 'translate-x-6' : 'translate-x-1'
+          {[
+            {
+              field: 'simulateEnabled',
+              label: 'Simular etapa',
+              desc: 'Exibe o botão "Simular etapa" na página pública do torneio',
+              value: tournament?.simulateEnabled,
+              onToggle: toggleSimulate,
+            },
+            {
+              field: 'testResultEnabled',
+              label: 'Teste Resultado Etapa',
+              desc: 'Botão de geração automática de duplas e resultados na tela de entrada de etapa (apenas admin)',
+              value: tournament?.testResultEnabled,
+              onToggle: () => toggle('testResultEnabled', tournament?.testResultEnabled),
+            },
+          ].map(({ field, label, desc, value, onToggle }) => (
+            <div key={field} className="flex items-center justify-between px-5 py-4">
+              <div>
+                <p className="font-medium text-neutral-900 text-sm">{label}</p>
+                <p className="text-xs text-neutral-400 mt-0.5">{desc}</p>
+              </div>
+              <button
+                onClick={onToggle}
+                disabled={toggling}
+                aria-label={`Toggle ${label}`}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
+                  value ? 'bg-[#9B2D3E]' : 'bg-neutral-200'
                 }`}
-              />
-            </button>
-          </div>
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    value ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
         </div>
       </section>
 

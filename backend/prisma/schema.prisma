@@ -29,8 +29,9 @@ model Tournament {
   year        Int
   totalRounds      Int      @default(9) @map("total_rounds")
   status           String   @default("ACTIVE") // ACTIVE | ARCHIVED
-  simulateEnabled  Boolean  @default(false) @map("simulate_enabled")
-  createdAt        DateTime @default(now()) @map("created_at")
+  simulateEnabled     Boolean  @default(false) @map("simulate_enabled")
+  testResultEnabled   Boolean  @default(false) @map("test_result_enabled")
+  createdAt           DateTime @default(now()) @map("created_at")
 
   participants Participant[]
   rounds       Round[]
