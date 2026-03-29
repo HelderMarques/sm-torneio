@@ -142,7 +142,7 @@ function PlayerInput({ value, onChange, participants, usedNames, placeholder }) 
 }
 
 // ── Court section ─────────────────────────────────────────────────────
-function CourtSection({ court, index, participants, usedNames, onChange, onRemove }) {
+function CourtSection({ court, index, participants, usedNames, onChange, onRemove, maxGameScore }) {
   const { label, pairs, games } = court;
   const totalGames = gamesForPairs(pairs.length);
 
@@ -300,7 +300,7 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
                   <input
                     type="number"
                     min="0"
-                    max={settingsMap['games_to_win_set'] ?? DEFAULT_MAX_GAME_SCORE}
+                    max={maxGameScore}
                     value={g.scoreA}
                     onChange={(e) => updateGame(gi, 'scoreA', e.target.value)}
                     className={`w-12 text-center border rounded-lg px-1 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] ${
@@ -314,7 +314,7 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
                   <input
                     type="number"
                     min="0"
-                    max={settingsMap['games_to_win_set'] ?? DEFAULT_MAX_GAME_SCORE}
+                    max={maxGameScore}
                     value={g.scoreB}
                     onChange={(e) => updateGame(gi, 'scoreB', e.target.value)}
                     className={`w-12 text-center border rounded-lg px-1 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] ${
@@ -1048,6 +1048,7 @@ export default function EtapaInput() {
             usedNames={usedNames}
             onChange={(updated) => updateCourt(ci, updated)}
             onRemove={() => removeCourt(ci)}
+            maxGameScore={settingsMap['games_to_win_set'] ?? DEFAULT_MAX_GAME_SCORE}
           />
         ))}
       </div>
