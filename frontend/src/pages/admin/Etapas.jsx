@@ -46,8 +46,17 @@ export default function Etapas() {
                 to={`/admin/t/${slug}/etapa/${round.id}`}
                 className="bg-[#9B2D3E] hover:bg-[#8B2942] text-white px-4 py-2 rounded-xl text-sm font-medium"
               >
-                {round.status === 'COMPLETED' ? 'Editar' : 'Registrar'}
+                {round.status === 'COMPLETED' ? 'Reeditar' : 'Registrar'}
               </Link>
+              {round.status === 'COMPLETED' && (
+                <Link
+                  to={`/admin/t/${slug}/etapa/${round.id}/manual`}
+                  className="border border-neutral-200 text-neutral-600 hover:bg-neutral-50 px-3 py-2 rounded-xl text-sm font-medium"
+                  title="Ajuste manual avançado"
+                >
+                  Manual
+                </Link>
+              )}
             </div>
           </div>
         ))}

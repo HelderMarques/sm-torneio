@@ -16,6 +16,7 @@ import Login from './pages/admin/Login';
 import Dashboard from './pages/admin/Dashboard';
 import Etapas from './pages/admin/Etapas';
 import EtapaDetail from './pages/admin/EtapaDetail';
+import EtapaInput from './pages/admin/EtapaInput';
 import Participantes from './pages/admin/Participantes';
 import CalendarioAdmin from './pages/admin/Calendario';
 import TorneiosAdmin from './pages/admin/Torneios';
@@ -96,7 +97,8 @@ function AppContent() {
         <Route path="classificacao" element={<ClassificacaoAdmin />} />
         <Route path="calendario" element={<CalendarioAdmin />} />
         <Route path="etapas" element={<Etapas />} />
-        <Route path="etapa/:id" element={<EtapaDetail />} />
+        <Route path="etapa/:id" element={<EtapaInput />} />
+        <Route path="etapa/:id/manual" element={<EtapaDetail />} />
         <Route path="participantes" element={<Participantes />} />
         <Route path="configuracoes" element={<Dashboard />} />
       </Route>

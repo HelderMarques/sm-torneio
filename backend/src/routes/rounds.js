@@ -1,10 +1,44 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const { randomUUID } = require('crypto');
 const authMiddleware = require('../middleware/auth');
 const { recalculateStandings, getPointsForResult, getStandings } = require('../services/standingsService');
 
 const router = express.Router({ mergeParams: true });
 const prisma = new PrismaClient();
+
+/**
+ * Double-loss (double-elimination) position algorithm.
+ * games: [{pairAIndex, pairBIndex, scoreA, scoreB}] in order.
+ * Returns positionMap[pairIndex] = position (1 = best).
+ */
+function computeDoubleLossPositions(n, games) {
+  const losses = new Array(n).fill(0);
+  const eliminationOrder = []; // pair indices added when they get their 2nd loss
+
+  for (const { pairAIndex: a, pairBIndex: b, scoreA, scoreB } of games) {
+    if (a == null || b == null || scoreA === scoreB) continue;
+    const loser = scoreA < scoreB ? a : b;
+    losses[loser]++;
+    if (losses[loser] >= 2 && !eliminationOrder.includes(loser)) {
+      eliminationOrder.push(loser);
+    }
+  }
+
+  // Pairs never eliminated (0 or 1 loss) are winners
+  const winners = Array.from({ length: n }, (_, i) => i).filter(
+    (i) => !eliminationOrder.includes(i)
+  );
+
+  const positionMap = new Array(n).fill(null);
+  let pos = 1;
+  winners.forEach((i) => { positionMap[i] = pos++; });
+  // Last eliminated = 2nd place; first eliminated = worst
+  for (let i = eliminationOrder.length - 1; i >= 0; i--) {
+    positionMap[eliminationOrder[i]] = pos++;
+  }
+  return positionMap;
+}
 
 // GET / - list all rounds for this tournament
 router.get('/', async (req, res) => {
@@ -389,6 +423,212 @@ router.put('/:id', authMiddleware, async (req, res) => {
     res.json(round);
   } catch (error) {
     console.error('Error updating round:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// POST /:id/court-results — court-centric batch result entry (admin)
+// Body: { courts: [{ label, pairs:[{playerA,playerB}], games:[{pairAIndex,pairBIndex,scoreA,scoreB}] }], sorteados:[{name,type}] }
+router.post('/:id/court-results', authMiddleware, async (req, res) => {
+  try {
+    const roundId = req.params.id;
+    const { courts = [], sorteados = [] } = req.body;
+
+    if (!Array.isArray(courts) || courts.length === 0) {
+      return res.status(400).json({ error: 'Pelo menos uma quadra deve ser informada' });
+    }
+
+    const round = await prisma.round.findFirst({
+      where: { id: roundId, tournamentId: req.tournament.id },
+    });
+    if (!round) return res.status(404).json({ error: 'Etapa não encontrada' });
+
+    // Load active participants for this group
+    const allParticipants = await prisma.participant.findMany({
+      where: { tournamentId: req.tournament.id, group: round.group, active: true },
+    });
+    const byName = new Map(allParticipants.map((p) => [p.name.toLowerCase().trim(), p]));
+
+    const resolve = (name) => {
+      const p = byName.get(String(name).toLowerCase().trim());
+      if (!p) throw Object.assign(new Error(`Participante não encontrado: "${name}"`), { code: 400 });
+      return p;
+    };
+
+    const usedIds = new Set();
+    const dupCheck = (p, label) => {
+      if (usedIds.has(p.id)) throw Object.assign(new Error(`Participante "${p.name}" aparece mais de uma vez`), { code: 400 });
+      usedIds.add(p.id);
+      return p;
+    };
+
+    // Process courts
+    const processedCourts = courts.map((court) => {
+      if (!court.label?.trim()) throw Object.assign(new Error('Nome da quadra é obrigatório'), { code: 400 });
+      const pairs = (court.pairs || []).map(({ playerA, playerB }) => {
+        const pA = dupCheck(resolve(playerA));
+        const pB = dupCheck(resolve(playerB));
+        return { playerA: pA, playerB: pB, pairId: randomUUID() };
+      });
+      if (pairs.length < 2) throw Object.assign(new Error(`Quadra "${court.label}": mínimo 2 duplas`), { code: 400 });
+      return { label: court.label.trim(), pairs, games: court.games || [] };
+    });
+
+    // Process sorteados
+    const resolvedSorteados = (sorteados || []).map(({ name, type }) => ({
+      participant: dupCheck(resolve(name)),
+      absentReason: type === 'sorteio_a_pedido' ? 'SORTEIO_VOLUNTARIA' : 'SORTEIO',
+    }));
+
+    // Absent = active participants not in any court or sorteados
+    const absentParticipants = allParticipants.filter((p) => !usedIds.has(p.id));
+
+    // Build results + matches
+    const allResults = [];
+    const allMatches = [];
+
+    for (const { label, pairs, games } of processedCourts) {
+      const n = pairs.length;
+
+      // Normalise game list
+      const normGames = games
+        .filter((g) => g.pairAIndex != null && g.pairBIndex != null && g.scoreA !== g.scoreB)
+        .map((g) => ({
+          pairAIndex: Number(g.pairAIndex),
+          pairBIndex: Number(g.pairBIndex),
+          scoreA: Number(g.scoreA) || 0,
+          scoreB: Number(g.scoreB) || 0,
+        }))
+        .filter((g) => g.pairAIndex < n && g.pairBIndex < n);
+
+      // Positions
+      const positionMap = computeDoubleLossPositions(n, normGames);
+
+      // Sets / games per pair
+      const setsWon   = new Array(n).fill(0);
+      const setsLost  = new Array(n).fill(0);
+      const gamesWon  = new Array(n).fill(0);
+      const gamesLost = new Array(n).fill(0);
+
+      normGames.forEach(({ pairAIndex: a, pairBIndex: b, scoreA, scoreB }, idx) => {
+        allMatches.push({
+          courtLabel: label,
+          pairAId: pairs[a].pairId,
+          pairBId: pairs[b].pairId,
+          scoreA,
+          scoreB,
+          gameOrder: idx + 1,
+        });
+        if (scoreA > scoreB) { setsWon[a]++; setsLost[b]++; }
+        else                  { setsWon[b]++; setsLost[a]++; }
+        gamesWon[a]  += scoreA; gamesLost[a] += scoreB;
+        gamesWon[b]  += scoreB; gamesLost[b] += scoreA;
+      });
+
+      // RoundResult for each player
+      pairs.forEach(({ playerA, playerB, pairId }, i) => {
+        [playerA, playerB].forEach((player) => {
+          const rec = {
+            participantId: player.id,
+            position: positionMap[i],
+            pairId,
+            courtLabel: label,
+            present: true,
+            absentReason: 'NONE',
+            setsWon: setsWon[i],
+            setsLost: setsLost[i],
+            gamesWon: gamesWon[i],
+            gamesLost: gamesLost[i],
+            uniformPenalty: 0,
+          };
+          rec.pointsRaw = getPointsForResult(rec);
+          allResults.push(rec);
+        });
+      });
+    }
+
+    // Sorteados
+    resolvedSorteados.forEach(({ participant, absentReason }) => {
+      const rec = {
+        participantId: participant.id,
+        position: null,
+        pairId: null,
+        courtLabel: null,
+        present: false,
+        absentReason,
+        setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0,
+        uniformPenalty: 0,
+      };
+      rec.pointsRaw = getPointsForResult(rec);
+      allResults.push(rec);
+    });
+
+    // Absents
+    absentParticipants.forEach((participant) => {
+      allResults.push({
+        participantId: participant.id,
+        position: null,
+        pairId: null,
+        courtLabel: null,
+        present: false,
+        absentReason: 'FALTA',
+        setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0,
+        uniformPenalty: 0,
+        pointsRaw: 0,
+      });
+    });
+
+    // Persist (replace)
+    await prisma.roundResult.deleteMany({ where: { roundId } });
+    await prisma.matchResult.deleteMany({ where: { roundId } });
+
+    for (const r of allResults) {
+      await prisma.roundResult.create({
+        data: {
+          roundId,
+          participantId: r.participantId,
+          position: r.position,
+          pointsRaw: r.pointsRaw,
+          present: r.present,
+          absentReason: r.absentReason,
+          uniformPenalty: r.uniformPenalty,
+          setsWon: r.setsWon,
+          setsLost: r.setsLost,
+          gamesWon: r.gamesWon,
+          gamesLost: r.gamesLost,
+          pairId: r.pairId,
+          courtLabel: r.courtLabel,
+        },
+      });
+    }
+
+    for (const m of allMatches) {
+      await prisma.matchResult.create({
+        data: {
+          roundId,
+          courtLabel: m.courtLabel,
+          pairAId: m.pairAId,
+          pairBId: m.pairBId,
+          scoreA: m.scoreA,
+          scoreB: m.scoreB,
+          gameOrder: m.gameOrder,
+        },
+      });
+    }
+
+    await prisma.round.update({ where: { id: roundId }, data: { status: 'COMPLETED' } });
+    await recalculateStandings(round.group, req.tournament.id);
+
+    const standings = await getStandings(round.group, req.tournament.id);
+
+    res.status(201).json({
+      saved: allResults.length,
+      absents: absentParticipants.map((p) => p.name),
+      standings,
+    });
+  } catch (err) {
+    if (err.code === 400) return res.status(400).json({ error: err.message });
+    console.error('Error in court-results:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
