@@ -111,6 +111,20 @@ model MatchResult {
   @@map("match_results")
 }
 
+model TournamentSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  type      String   // "int" | "float" | "boolean" | "string"
+  category  String   // grouping for the UI
+  label     String   // human-readable label (Portuguese)
+  group     String   @default("SHARED") // "MASCULINO" | "FEMININO" | "SHARED"
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tournament_settings")
+}
+
 model Standing {
   id            String @id @default(uuid())
   participantId String @map("participant_id")

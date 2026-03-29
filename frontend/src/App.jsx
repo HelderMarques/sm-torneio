@@ -22,6 +22,7 @@ import CalendarioAdmin from './pages/admin/Calendario';
 import TorneiosAdmin from './pages/admin/Torneios';
 import ClassificacaoAdmin from './pages/admin/ClassificacaoAdmin';
 import Usuarios from './pages/admin/Usuarios';
+import ConfiguracoesTorneio from './pages/admin/ConfiguracoesTorneio';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -101,6 +102,7 @@ function AppContent() {
         <Route path="etapa/:id/manual" element={<EtapaDetail />} />
         <Route path="participantes" element={<Participantes />} />
         <Route path="configuracoes" element={<Dashboard />} />
+        <Route path="regras" element={<ConfiguracoesTorneio />} />
       </Route>
 
       {/* Fallback */}

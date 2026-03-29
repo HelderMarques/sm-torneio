@@ -11,6 +11,7 @@ const tournamentRoutes = require('./routes/tournaments');
 const participantRoutes = require('./routes/participants');
 const roundRoutes = require('./routes/rounds');
 const standingsRoutes = require('./routes/standings');
+const settingsRoutes = require('./routes/settings');
 const tournamentMiddleware = require('./middleware/tournament');
 
 const app = express();
@@ -29,6 +30,9 @@ app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/tournaments/:tournamentSlug/participants', tournamentMiddleware, participantRoutes);
 app.use('/api/tournaments/:tournamentSlug/rounds', tournamentMiddleware, roundRoutes);
 app.use('/api/tournaments/:tournamentSlug/standings', tournamentMiddleware, standingsRoutes);
+
+// Global settings (not tournament-scoped)
+app.use('/api/settings', settingsRoutes);
 
 // Tournament listing (rotas gerais por último)
 app.use('/api/tournaments', tournamentRoutes);

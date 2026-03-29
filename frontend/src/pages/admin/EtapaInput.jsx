@@ -1,11 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTournament } from '../../hooks/useTournament';
+import api from '../../api/client';
 
 // Games per court: 2N - 1
 const gamesForPairs = (n) => Math.max(0, 2 * n - 1);
 
-const PONTOS_POSICAO = { 1: 100, 2: 80, 3: 70, 4: 60, 5: 50, 6: 40, 7: 30 };
+// Default point values — overridden by settings fetched from API
+const DEFAULT_PONTOS_POSICAO = { 1: 100, 2: 80, 3: 70, 4: 60, 5: 50, 6: 40, 7: 30 };
+const DEFAULT_PTS_SORTEIO = 80;
+const DEFAULT_PTS_SORTEIO_VOLUNTARIA = 60;
+const DEFAULT_MAX_GAME_SCORE = 5;
+
+function buildPontosPosicao(settingsMap) {
+  return {
+    1: Number(settingsMap['points_1st_place'] ?? DEFAULT_PONTOS_POSICAO[1]),
+    2: Number(settingsMap['points_2nd_place'] ?? DEFAULT_PONTOS_POSICAO[2]),
+    3: Number(settingsMap['points_3rd_place'] ?? DEFAULT_PONTOS_POSICAO[3]),
+    4: Number(settingsMap['points_4th_place'] ?? DEFAULT_PONTOS_POSICAO[4]),
+    5: Number(settingsMap['points_5th_place'] ?? DEFAULT_PONTOS_POSICAO[5]),
+    6: Number(settingsMap['points_6th_place'] ?? DEFAULT_PONTOS_POSICAO[6]),
+    7: Number(settingsMap['points_7th_place'] ?? DEFAULT_PONTOS_POSICAO[7]),
+  };
+}
 
 // ── Double-loss position algorithm (mirrors backend) ──────────────────
 function computePositions(n, games) {
@@ -283,7 +300,7 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
                   <input
                     type="number"
                     min="0"
-                    max="5"
+                    max={settingsMap['games_to_win_set'] ?? DEFAULT_MAX_GAME_SCORE}
                     value={g.scoreA}
                     onChange={(e) => updateGame(gi, 'scoreA', e.target.value)}
                     className={`w-12 text-center border rounded-lg px-1 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] ${
@@ -297,7 +314,7 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
                   <input
                     type="number"
                     min="0"
-                    max="5"
+                    max={settingsMap['games_to_win_set'] ?? DEFAULT_MAX_GAME_SCORE}
                     value={g.scoreB}
                     onChange={(e) => updateGame(gi, 'scoreB', e.target.value)}
                     className={`w-12 text-center border rounded-lg px-1 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] ${
@@ -427,6 +444,7 @@ export default function EtapaInput() {
   const [courts, setCourts] = useState([newCourt()]);
   const [sorteados, setSorteados] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [settingsMap, setSettingsMap] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState([]);
   const [step, setStep] = useState('form'); // 'form' | 'preview-round' | 'preview-standings' | 'done'
@@ -437,11 +455,14 @@ export default function EtapaInput() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    Promise.all([tApi.get(`/rounds/${id}`), tApi.get('/participants')])
-      .then(([rRes, pRes]) => {
+    Promise.all([tApi.get(`/rounds/${id}`), tApi.get('/participants'), api.get('/settings/flat')])
+      .then(([rRes, pRes, sRes]) => {
         const r = rRes.data;
         setRound(r);
         setParticipants(pRes.data.filter((p) => p.group === r.group && p.active));
+        const map = {};
+        for (const s of sRes.data) map[s.key] = s.value;
+        setSettingsMap(map);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -575,6 +596,7 @@ export default function EtapaInput() {
     if (errs.length) { setErrors(errs); return; }
     setErrors([]);
 
+    const pontos = buildPontosPosicao(settingsMap);
     const usedNames = new Set();
     const courtPreviews = courts.map((court) => {
       const n = court.pairs.length;
@@ -585,7 +607,7 @@ export default function EtapaInput() {
         label: court.label,
         pairs: court.pairs.map((pair, i) => ({
           position: positions[i],
-          points: PONTOS_POSICAO[positions[i]] ?? 0,
+          points: pontos[positions[i]] ?? 0,
           playerA: pair.playerA,
           playerB: pair.playerB,
           setsWon: stats.setsWon[i],
@@ -812,7 +834,11 @@ export default function EtapaInput() {
             {roundPreview.sorteados.map((s, i) => (
               <div key={i} className="flex justify-between text-sm py-1">
                 <span className="text-neutral-800">{s.name}</span>
-                <span className="text-neutral-500">{s.type === 'sorteio_a_pedido' ? '60 pts (a pedido)' : '80 pts (sorteio)'}</span>
+                <span className="text-neutral-500">
+                  {s.type === 'sorteio_a_pedido'
+                    ? `${settingsMap['points_sit_out_volunteer'] ?? DEFAULT_PTS_SORTEIO_VOLUNTARIA} pts (a pedido)`
+                    : `${settingsMap['points_sit_out_drawn'] ?? DEFAULT_PTS_SORTEIO} pts (sorteio)`}
+                </span>
               </div>
             ))}
           </div>
@@ -1065,8 +1091,8 @@ export default function EtapaInput() {
                   onChange={(e) => updateSorteado(si, 'type', e.target.value)}
                   className="border border-neutral-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E]"
                 >
-                  <option value="sorteio">Sorteio (80 pts)</option>
-                  <option value="sorteio_a_pedido">A pedido (60 pts)</option>
+                  <option value="sorteio">Sorteio ({settingsMap['points_sit_out_drawn'] ?? DEFAULT_PTS_SORTEIO} pts)</option>
+                  <option value="sorteio_a_pedido">A pedido ({settingsMap['points_sit_out_volunteer'] ?? DEFAULT_PTS_SORTEIO_VOLUNTARIA} pts)</option>
                 </select>
                 <button
                   type="button"

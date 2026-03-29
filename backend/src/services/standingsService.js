@@ -1,33 +1,36 @@
 const { PrismaClient } = require('@prisma/client');
+const { loadSettings } = require('../utils/settings');
+
 const prisma = new PrismaClient();
 
-const POINTS_BY_POSITION = {
-  1: 100,
-  2: 80,
-  3: 70,
-  4: 60,
-  5: 50,
-  6: 40,
-  7: 30,
-};
-
-const DISCARD_STARTS_AT = 5;
-const FULL_ATTENDANCE_BONUS = 20;
-
-function getPointsForResult(result) {
+function getPointsForResult(result, settings) {
+  const POINTS_BY_POSITION = {
+    1: settings.int('points_1st_place'),
+    2: settings.int('points_2nd_place'),
+    3: settings.int('points_3rd_place'),
+    4: settings.int('points_4th_place'),
+    5: settings.int('points_5th_place'),
+    6: settings.int('points_6th_place'),
+    7: settings.int('points_7th_place'),
+  };
   if (!result.present) {
-    if (result.absentReason === 'SORTEIO') return 80;
-    if (result.absentReason === 'SORTEIO_VOLUNTARIA') return 60;
+    if (result.absentReason === 'SORTEIO') return settings.int('points_sit_out_drawn');
+    if (result.absentReason === 'SORTEIO_VOLUNTARIA') return settings.int('points_sit_out_volunteer');
     return 0; // FALTA
   }
   return POINTS_BY_POSITION[result.position] || 0;
 }
 
 async function recalculateStandings(group, tournamentId) {
-  // Fetch tournament to get totalRounds dynamically
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  const [tournament, settings] = await Promise.all([
+    prisma.tournament.findUnique({ where: { id: tournamentId } }),
+    loadSettings(),
+  ]);
   if (!tournament) throw new Error('Torneio não encontrado');
+
   const TOTAL_ROUNDS = tournament.totalRounds;
+  const DISCARD_STARTS_AT = settings.int('discard_starts_after_round');
+  const FULL_ATTENDANCE_BONUS = settings.int('bonus_full_attendance');
 
   const participants = await prisma.participant.findMany({
     where: { group, active: true, tournamentId },
@@ -50,12 +53,12 @@ async function recalculateStandings(group, tournamentId) {
     const results = p.results;
 
     // Collect per-round points
-    const roundPoints = results.map((r) => getPointsForResult(r));
+    const roundPoints = results.map((r) => getPointsForResult(r, settings));
 
     // Raw total
     const pointsRaw = roundPoints.reduce((sum, pts) => sum + pts, 0);
 
-    // Discard: active from 5th completed round, remove lowest positive score
+    // Discard: active from configured round, remove lowest positive score
     let pointsDiscard = 0;
     if (completedCount >= DISCARD_STARTS_AT) {
       const positivePoints = roundPoints.filter((p) => p > 0);
@@ -67,7 +70,7 @@ async function recalculateStandings(group, tournamentId) {
     // Uniform penalties (sum of all)
     const pointsPenalty = results.reduce((sum, r) => sum + Math.abs(r.uniformPenalty), 0);
 
-    // Attendance bonus: +20 if participated in ALL rounds
+    // Attendance bonus: +bonus if participated in ALL rounds
     const roundsPresent = results.filter(
       (r) => r.present || r.absentReason === 'SORTEIO' || r.absentReason === 'SORTEIO_VOLUNTARIA'
     ).length;
@@ -255,12 +258,18 @@ async function getStandings(group, tournamentId) {
 
 /**
  * Simula o efeito de uma nova etapa sobre a classificação,
- * sem gravar nada na base. Recebe resultados \"virtuais\" para cada participante.
+ * sem gravar nada na base. Recebe resultados "virtuais" para cada participante.
  */
 async function simulateStandings(group, tournamentId, simulatedResults) {
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+  const [tournament, settings] = await Promise.all([
+    prisma.tournament.findUnique({ where: { id: tournamentId } }),
+    loadSettings(),
+  ]);
   if (!tournament) throw new Error('Torneio não encontrado');
+
   const TOTAL_ROUNDS = tournament.totalRounds;
+  const DISCARD_STARTS_AT = settings.int('discard_starts_after_round');
+  const FULL_ATTENDANCE_BONUS = settings.int('bonus_full_attendance');
 
   const participants = await prisma.participant.findMany({
     where: { group, active: true, tournamentId },
@@ -303,7 +312,7 @@ async function simulateStandings(group, tournamentId, simulatedResults) {
     const extra = simulatedByParticipant[p.id] ? [simulatedByParticipant[p.id]] : [];
     const results = [...baseResults, ...extra];
 
-    const roundPoints = results.map((r) => getPointsForResult(r));
+    const roundPoints = results.map((r) => getPointsForResult(r, settings));
     const pointsRaw = roundPoints.reduce((sum, pts) => sum + pts, 0);
 
     let pointsDiscard = 0;
@@ -420,5 +429,4 @@ module.exports = {
   getStandings,
   getPointsForResult,
   simulateStandings,
-  POINTS_BY_POSITION,
 };
