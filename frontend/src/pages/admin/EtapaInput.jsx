@@ -107,7 +107,7 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
   };
 
   const addPair = () => {
-    if (pairs.length >= 7) return;
+    if (pairs.length >= 8) return;
     const newGamesCount = gamesForPairs(pairs.length + 1);
     const newGames = Array.from({ length: newGamesCount }, (_, i) =>
       games[i] ?? { pairAIndex: null, pairBIndex: null, scoreA: '', scoreB: '' }
@@ -181,11 +181,11 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
               >
                 −
               </button>
-              <span className="text-xs text-neutral-400 tabular-nums">{pairs.length}/7</span>
+              <span className="text-xs text-neutral-400 tabular-nums">{pairs.length}/8</span>
               <button
                 type="button"
                 onClick={addPair}
-                disabled={pairs.length >= 7}
+                disabled={pairs.length >= 8}
                 className="w-6 h-6 rounded-md border border-neutral-200 text-neutral-500 hover:bg-neutral-50 disabled:opacity-30 flex items-center justify-center text-sm font-bold"
               >
                 +
@@ -214,11 +214,6 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
                   usedNames={usedNames}
                   placeholder="Jogador B"
                 />
-                {positions[pi] != null && (
-                  <span className="shrink-0 text-xs font-semibold text-neutral-400 w-12 text-right">
-                    {positions[pi]}º · {PONTOS_POSICAO[positions[pi]] ?? '?'} pts
-                  </span>
-                )}
               </div>
             ))}
           </div>
