@@ -420,6 +420,86 @@ function buildTestData(orderedNames, group) {
   return { courts, sorteados };
 }
 
+// ── Reconstruct form state from saved round results ────────────────────
+function reconstructCourtsFromRound(round) {
+  const results = round.results || [];
+  const matchResults = round.matchResults || [];
+
+  // Separate: participants on courts vs sorteados vs absent
+  const courtResults = results.filter((r) => r.present && r.courtLabel && r.pairId);
+  const sorteadoResults = results.filter(
+    (r) => !r.present && (r.absentReason === 'SORTEIO' || r.absentReason === 'SORTEIO_VOLUNTARIA')
+  );
+
+  // Group court participants by courtLabel
+  const courtMap = {};
+  for (const r of courtResults) {
+    if (!courtMap[r.courtLabel]) courtMap[r.courtLabel] = [];
+    courtMap[r.courtLabel].push(r);
+  }
+
+  const courts = Object.keys(courtMap)
+    .sort() // consistent order (matches backend orderBy courtLabel asc)
+    .map((label) => {
+      const courtParticipants = courtMap[label];
+
+      // Group by pairId → each pair has 2 players
+      const pairMap = {};
+      for (const r of courtParticipants) {
+        if (!pairMap[r.pairId]) pairMap[r.pairId] = [];
+        pairMap[r.pairId].push(r.participant?.name || '');
+      }
+
+      const pairIds = Object.keys(pairMap);
+      const pairs = pairIds.map((pairId) => {
+        const names = pairMap[pairId];
+        return { playerA: names[0] || '', playerB: names[1] || '' };
+      });
+
+      // Map pairId → index within this court (for reconstructing games)
+      const pairIdToIndex = {};
+      pairIds.forEach((pairId, i) => { pairIdToIndex[pairId] = i; });
+
+      // Get and sort matches for this court
+      const courtMatches = matchResults
+        .filter((m) => m.courtLabel === label)
+        .sort((a, b) => a.gameOrder - b.gameOrder);
+
+      const expectedGames = gamesForPairs(pairs.length);
+      const games = Array.from({ length: expectedGames }, (_, i) => {
+        const m = courtMatches[i];
+        if (!m) return { pairAIndex: null, pairBIndex: null, scoreA: '', scoreB: '' };
+        return {
+          pairAIndex: pairIdToIndex[m.pairAId] ?? null,
+          pairBIndex: pairIdToIndex[m.pairBId] ?? null,
+          scoreA: String(m.scoreA),
+          scoreB: String(m.scoreB),
+        };
+      });
+
+      return {
+        id: Math.random().toString(36).slice(2),
+        label,
+        pairs,
+        games,
+      };
+    });
+
+  const sorteados = sorteadoResults.map((r) => ({
+    id: Math.random().toString(36).slice(2),
+    name: r.participant?.name || '',
+    type: r.absentReason === 'SORTEIO_VOLUNTARIA' ? 'sorteio_a_pedido' : 'sorteio',
+  }));
+
+  const fallbackCourt = {
+    id: Math.random().toString(36).slice(2),
+    label: '',
+    pairs: [{ playerA: '', playerB: '' }, { playerA: '', playerB: '' }, { playerA: '', playerB: '' }],
+    games: Array.from({ length: gamesForPairs(3) }, () => ({ pairAIndex: null, pairBIndex: null, scoreA: '', scoreB: '' })),
+  };
+  return { courts: courts.length > 0 ? courts : [fallbackCourt], sorteados };
+}
+
 // ── Main page ─────────────────────────────────────────────────────────
 const newCourt = () => ({
   id: Math.random().toString(36).slice(2),
@@ -461,6 +541,13 @@ export default function EtapaInput() {
         const r = rRes.data;
         setRound(r);
         setParticipants(pRes.data.filter((p) => p.group === r.group && p.active));
+
+        // If round is already COMPLETED, pre-fill form with existing results
+        if (r.status === 'COMPLETED' && (r.results?.length > 0 || r.matchResults?.length > 0)) {
+          const { courts: savedCourts, sorteados: savedSorteados } = reconstructCourtsFromRound(r);
+          setCourts(savedCourts);
+          setSorteados(savedSorteados);
+        }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
