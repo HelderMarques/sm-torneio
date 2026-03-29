@@ -35,9 +35,12 @@ function PlayerInput({ value, onChange, participants, usedNames, placeholder }) 
 
   useEffect(() => { setQuery(value); }, [value]);
 
+  const normalize = (s) =>
+    s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
   const filtered = query.length > 0
     ? participants.filter((p) =>
-        p.name.toLowerCase().includes(query.toLowerCase()) && !usedNames.has(p.name)
+        normalize(p.name).includes(normalize(query)) && !usedNames.has(p.name)
       ).slice(0, 6)
     : [];
 
@@ -51,7 +54,7 @@ function PlayerInput({ value, onChange, participants, usedNames, placeholder }) 
     setTimeout(() => setOpen(false), 150);
     // If typed value matches a participant exactly, accept it
     const exact = participants.find(
-      (p) => p.name.toLowerCase() === query.toLowerCase()
+      (p) => normalize(p.name) === normalize(query)
     );
     if (exact) { onChange(exact.name); setQuery(exact.name); }
     else if (!participants.find((p) => p.name === value)) {
