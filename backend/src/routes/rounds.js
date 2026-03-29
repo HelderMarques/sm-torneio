@@ -427,6 +427,28 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// DELETE /:id/results — remove all results, reset round to SCHEDULED (admin)
+router.delete('/:id/results', authMiddleware, async (req, res) => {
+  try {
+    const roundId = req.params.id;
+    const round = await prisma.round.findFirst({
+      where: { id: roundId, tournamentId: req.tournament.id },
+    });
+    if (!round) return res.status(404).json({ error: 'Etapa não encontrada' });
+
+    await prisma.roundResult.deleteMany({ where: { roundId } });
+    await prisma.matchResult.deleteMany({ where: { roundId } });
+    await prisma.round.update({ where: { id: roundId }, data: { status: 'SCHEDULED' } });
+
+    await recalculateStandings(round.group, req.tournament.id);
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting results:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // POST /:id/court-results — court-centric batch result entry (admin)
 // Body: { courts: [{ label, pairs:[{playerA,playerB}], games:[{pairAIndex,pairBIndex,scoreA,scoreB}] }], sorteados:[{name,type}] }
 router.post('/:id/court-results', authMiddleware, async (req, res) => {

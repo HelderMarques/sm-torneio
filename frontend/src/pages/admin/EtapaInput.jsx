@@ -405,6 +405,7 @@ export default function EtapaInput() {
   const [errors, setErrors] = useState([]);
   const [result, setResult] = useState(null); // success snapshot
   const [generating, setGenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([tApi.get(`/rounds/${id}`), tApi.get('/participants')])
@@ -485,6 +486,25 @@ export default function EtapaInput() {
     });
 
     return errs;
+  };
+
+  const handleDeleteResults = async () => {
+    if (!window.confirm(
+      `Apagar todos os resultados da ${round.number}ª Etapa?\n\nA etapa voltará para "Agendada" e a classificação será recalculada sem essa etapa. Esta ação não pode ser desfeita.`
+    )) return;
+
+    setDeleting(true);
+    try {
+      await tApi.delete(`/rounds/${id}/results`);
+      // Reload round to reflect new SCHEDULED status
+      const rRes = await tApi.get(`/rounds/${id}`);
+      setRound(rRes.data);
+      setResult(null);
+    } catch (err) {
+      setErrors([err.response?.data?.error || 'Erro ao apagar resultados']);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleGenerateTest = async () => {
@@ -610,15 +630,26 @@ export default function EtapaInput() {
           </table>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <Link
             to={`/admin/t/${slug}/etapas`}
             className="flex-1 text-center border border-neutral-200 text-neutral-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-neutral-50"
           >
             Voltar às etapas
           </Link>
+          <button
+            type="button"
+            onClick={handleDeleteResults}
+            disabled={deleting}
+            className="flex items-center gap-1.5 border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            {deleting ? 'Apagando…' : 'Apagar resultados'}
+          </button>
           <Link
-            to={`/admin/t/${slug}/etapa/${id}`}
+            to={`/admin/t/${slug}/etapa/${id}/manual`}
             className="flex-1 text-center bg-[#9B2D3E] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#8B2942]"
           >
             Ajuste manual (avançado)
@@ -642,14 +673,31 @@ export default function EtapaInput() {
           <span>›</span>
           <span>Entrada por quadra</span>
         </p>
-        <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
-          {round.number}ª Etapa — {round.group === 'F' ? 'Feminino' : 'Masculino'}
-        </h1>
-        <p className="text-sm text-neutral-500 mt-0.5">
-          {new Date(round.date + 'T12:00:00').toLocaleDateString('pt-BR', {
-            weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
-          })}
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-neutral-900 tracking-tight">
+              {round.number}ª Etapa — {round.group === 'F' ? 'Feminino' : 'Masculino'}
+            </h1>
+            <p className="text-sm text-neutral-500 mt-0.5">
+              {new Date(round.date + 'T12:00:00').toLocaleDateString('pt-BR', {
+                weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
+              })}
+            </p>
+          </div>
+          {round.status === 'COMPLETED' && (
+            <button
+              type="button"
+              onClick={handleDeleteResults}
+              disabled={deleting}
+              className="shrink-0 flex items-center gap-1.5 border border-red-200 text-red-600 hover:bg-red-50 px-3 py-2 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              {deleting ? 'Apagando…' : 'Apagar resultados'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Test data generator — only when feature flag is on */}
