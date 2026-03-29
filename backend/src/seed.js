@@ -11,6 +11,7 @@
 
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
+const { seedSettings } = require('../prisma/seedSettings');
 
 const prisma = new PrismaClient();
 
@@ -44,6 +45,13 @@ async function seedMasterUser() {
     console.error('[seed] Erro ao garantir master user:', err.message);
   } finally {
     await prisma.$disconnect();
+  }
+
+  // Ensure default settings exist (idempotent — safe to run every startup)
+  try {
+    await seedSettings();
+  } catch (err) {
+    console.error('[seed] Erro ao garantir settings:', err.message);
   }
 }
 

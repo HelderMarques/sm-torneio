@@ -455,17 +455,24 @@ export default function EtapaInput() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    Promise.all([tApi.get(`/rounds/${id}`), tApi.get('/participants'), api.get('/settings/flat')])
-      .then(([rRes, pRes, sRes]) => {
+    // Main data — round + participants. Settings are best-effort and NEVER block this.
+    Promise.all([tApi.get(`/rounds/${id}`), tApi.get('/participants')])
+      .then(([rRes, pRes]) => {
         const r = rRes.data;
         setRound(r);
         setParticipants(pRes.data.filter((p) => p.group === r.group && p.active));
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+
+    // Settings fetch is independent — falls back silently to DEFAULT_* constants
+    api.get('/settings/flat')
+      .then((sRes) => {
         const map = {};
         for (const s of sRes.data) map[s.key] = s.value;
         setSettingsMap(map);
       })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch(() => { /* use defaults */ });
   }, [id, slug]);
 
   // All names currently in use (for autocomplete filtering)
