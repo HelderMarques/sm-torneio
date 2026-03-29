@@ -306,7 +306,7 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
  * If odd count, the middle player becomes a sorteado.
  * Generates random valid game scores (no ties).
  */
-function buildTestData(orderedNames, pairsPerCourt = 4) {
+function buildTestData(orderedNames, group) {
   const n = orderedNames.length;
   const allPairs = [];
 
@@ -325,8 +325,12 @@ function buildTestData(orderedNames, pairsPerCourt = 4) {
     });
   }
 
-  // Split pairs into courts
-  const courtCount = Math.max(1, Math.ceil(allPairs.length / pairsPerCourt));
+  // Feminino → sempre 1 quadra; Masculino → sempre 2 quadras
+  const isMasculino = group === 'M';
+  const courtCount = isMasculino ? 2 : 1;
+
+  // Distribute pairs as evenly as possible across courts
+  const pairsPerCourt = Math.ceil(allPairs.length / courtCount);
   const courts = [];
   for (let c = 0; c < courtCount; c++) {
     const courtPairs = allPairs.slice(c * pairsPerCourt, (c + 1) * pairsPerCourt);
@@ -505,7 +509,7 @@ export default function EtapaInput() {
         orderedNames = participants.map((p) => p.name);
       }
 
-      const { courts: genCourts, sorteados: genSorteados } = buildTestData(orderedNames);
+      const { courts: genCourts, sorteados: genSorteados } = buildTestData(orderedNames, round.group);
       setCourts(genCourts);
       setSorteados(genSorteados);
       setErrors([]);
