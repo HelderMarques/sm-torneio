@@ -27,6 +27,34 @@ function computePositions(n, games) {
   return pos;
 }
 
+// ── Sets/games stats per pair (mirrors backend logic) ─────────────────
+function computeCourtStats(n, normGames) {
+  const setsWon   = new Array(n).fill(0);
+  const setsLost  = new Array(n).fill(0);
+  const gamesWon  = new Array(n).fill(0);
+  const gamesLost = new Array(n).fill(0);
+  for (const { pairAIndex: a, pairBIndex: b, scoreA, scoreB } of normGames) {
+    if (a == null || b == null || a >= n || b >= n || scoreA === scoreB) continue;
+    if (scoreA > scoreB) { setsWon[a]++; setsLost[b]++; }
+    else                  { setsWon[b]++; setsLost[a]++; }
+    gamesWon[a]  += scoreA; gamesLost[a] += scoreB;
+    gamesWon[b]  += scoreB; gamesLost[b] += scoreA;
+  }
+  return { setsWon, setsLost, gamesWon, gamesLost };
+}
+
+function normalizeGames(games, n) {
+  return games
+    .filter((g) => g.pairAIndex != null && g.pairBIndex != null && g.scoreA !== '' && g.scoreB !== '')
+    .map((g) => ({
+      pairAIndex: Number(g.pairAIndex),
+      pairBIndex: Number(g.pairBIndex),
+      scoreA: Number(g.scoreA),
+      scoreB: Number(g.scoreB),
+    }))
+    .filter((g) => g.pairAIndex < n && g.pairBIndex < n && g.scoreA !== g.scoreB);
+}
+
 // ── Autocomplete input ────────────────────────────────────────────────
 function PlayerInput({ value, onChange, participants, usedNames, placeholder }) {
   const [open, setOpen] = useState(false);
@@ -255,7 +283,7 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
                   <input
                     type="number"
                     min="0"
-                    max="9"
+                    max="5"
                     value={g.scoreA}
                     onChange={(e) => updateGame(gi, 'scoreA', e.target.value)}
                     className={`w-12 text-center border rounded-lg px-1 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] ${
@@ -269,7 +297,7 @@ function CourtSection({ court, index, participants, usedNames, onChange, onRemov
                   <input
                     type="number"
                     min="0"
-                    max="9"
+                    max="5"
                     value={g.scoreB}
                     onChange={(e) => updateGame(gi, 'scoreB', e.target.value)}
                     className={`w-12 text-center border rounded-lg px-1 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-[#9B2D3E]/30 focus:border-[#9B2D3E] ${
@@ -401,7 +429,10 @@ export default function EtapaInput() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState([]);
-  const [result, setResult] = useState(null); // success snapshot
+  const [step, setStep] = useState('form'); // 'form' | 'preview-round' | 'preview-standings' | 'done'
+  const [roundPreview, setRoundPreview] = useState(null);
+  const [standingsPreview, setStandingsPreview] = useState(null);
+  const [simulatingStandings, setSimulatingStandings] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -538,33 +569,138 @@ export default function EtapaInput() {
     }
   };
 
-  const handleSubmit = async () => {
+  // Step 1 → preview-round: validate + compute positions locally
+  const handlePreviewRound = () => {
     const errs = validate();
     if (errs.length) { setErrors(errs); return; }
     setErrors([]);
-    setSubmitting(true);
 
+    const usedNames = new Set();
+    const courtPreviews = courts.map((court) => {
+      const n = court.pairs.length;
+      const ng = normalizeGames(court.games, n);
+      const positions = computePositions(n, ng);
+      const stats = computeCourtStats(n, ng);
+      return {
+        label: court.label,
+        pairs: court.pairs.map((pair, i) => ({
+          position: positions[i],
+          points: PONTOS_POSICAO[positions[i]] ?? 0,
+          playerA: pair.playerA,
+          playerB: pair.playerB,
+          setsWon: stats.setsWon[i],
+          setsLost: stats.setsLost[i],
+          gamesWon: stats.gamesWon[i],
+          gamesLost: stats.gamesLost[i],
+        })),
+      };
+    });
+
+    courts.forEach((c) => c.pairs.forEach((p) => { usedNames.add(p.playerA); usedNames.add(p.playerB); }));
+    sorteados.forEach((s) => usedNames.add(s.name));
+    const absents = participants.filter((p) => !usedNames.has(p.name)).map((p) => p.name);
+
+    setRoundPreview({ courts: courtPreviews, sorteados, absents });
+    setStep('preview-round');
+  };
+
+  // Step 2 → preview-standings: call simulate endpoint
+  const handlePreviewStandings = async () => {
+    setSimulatingStandings(true);
+    try {
+      const simulatedResults = [];
+      const usedIds = new Set();
+
+      courts.forEach((court) => {
+        const n = court.pairs.length;
+        const ng = normalizeGames(court.games, n);
+        const positions = computePositions(n, ng);
+        const stats = computeCourtStats(n, ng);
+
+        court.pairs.forEach((pair, i) => {
+          [pair.playerA, pair.playerB].forEach((name) => {
+            const p = participants.find((x) => x.name === name);
+            if (!p) return;
+            usedIds.add(p.id);
+            simulatedResults.push({
+              participantId: p.id,
+              present: true,
+              absentReason: 'NONE',
+              position: positions[i],
+              uniformPenalty: 0,
+              setsWon: stats.setsWon[i],
+              setsLost: stats.setsLost[i],
+              gamesWon: stats.gamesWon[i],
+              gamesLost: stats.gamesLost[i],
+            });
+          });
+        });
+      });
+
+      sorteados.forEach((s) => {
+        const p = participants.find((x) => x.name === s.name);
+        if (!p) return;
+        usedIds.add(p.id);
+        simulatedResults.push({
+          participantId: p.id,
+          present: false,
+          absentReason: s.type === 'sorteio_a_pedido' ? 'SORTEIO_VOLUNTARIA' : 'SORTEIO',
+          position: null, uniformPenalty: 0,
+          setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0,
+        });
+      });
+
+      participants.forEach((p) => {
+        if (!usedIds.has(p.id)) {
+          simulatedResults.push({
+            participantId: p.id,
+            present: false, absentReason: 'FALTA',
+            position: null, uniformPenalty: 0,
+            setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0,
+          });
+        }
+      });
+
+      const res = await tApi.post('/standings/simulate', {
+        group: round.group,
+        results: simulatedResults,
+      });
+      setStandingsPreview(res.data);
+      setStep('preview-standings');
+    } catch (err) {
+      setErrors([err.response?.data?.error || 'Erro ao simular classificação']);
+    } finally {
+      setSimulatingStandings(false);
+    }
+  };
+
+  // Step 3 → save
+  const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const payload = {
         courts: courts.map((c) => ({
           label: c.label,
           pairs: c.pairs.map((p) => ({ playerA: p.playerA, playerB: p.playerB })),
-          games: c.games
-            .filter((g) => g.pairAIndex != null && g.pairBIndex != null && g.scoreA !== '' && g.scoreB !== '')
-            .map((g) => ({
-              pairAIndex: Number(g.pairAIndex),
-              pairBIndex: Number(g.pairBIndex),
-              scoreA: Number(g.scoreA),
-              scoreB: Number(g.scoreB),
-            })),
+          games: normalizeGames(c.games, c.pairs.length).map((g) => ({
+            pairAIndex: g.pairAIndex,
+            pairBIndex: g.pairBIndex,
+            scoreA: g.scoreA,
+            scoreB: g.scoreB,
+          })),
         })),
         sorteados: sorteados.map((s) => ({ name: s.name, type: s.type })),
       };
 
       const res = await tApi.post(`/rounds/${id}/court-results`, payload);
-      setResult(res.data);
+      // reload round status
+      const rRes = await tApi.get(`/rounds/${id}`);
+      setRound(rRes.data);
+      setStandingsPreview(res.data.standings);
+      setStep('done');
     } catch (err) {
       setErrors([err.response?.data?.error || 'Erro ao salvar resultados']);
+      setStep('form');
     } finally {
       setSubmitting(false);
     }
@@ -580,9 +716,185 @@ export default function EtapaInput() {
 
   if (!round) return <div className="text-center py-20 text-neutral-500">Etapa não encontrada</div>;
 
-  // ── Success screen ──────────────────────────────────────────────────
-  if (result) {
-    const { absents = [], standings = [] } = result;
+  // ── Shared: delete + back buttons ──────────────────────────────────
+  const DeleteBtn = () => (
+    <button
+      type="button"
+      onClick={handleDeleteResults}
+      disabled={deleting}
+      className="flex items-center gap-1.5 border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors"
+    >
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+      {deleting ? 'Apagando…' : 'Apagar resultados'}
+    </button>
+  );
+
+  const StandingsTable = ({ data, title }) => (
+    <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-6">
+      <div className="px-5 py-4 border-b border-neutral-100">
+        <h3 className="font-semibold text-neutral-900">{title}</h3>
+      </div>
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400 uppercase tracking-wide">
+            <th className="px-4 py-2 text-left">#</th>
+            <th className="px-4 py-2 text-left">Atleta</th>
+            <th className="px-4 py-2 text-right">Pts Válidos</th>
+            {data[0]?.positionDelta !== undefined && <th className="px-4 py-2 text-right">Var.</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((s) => (
+            <tr key={s.participantId} className="border-b border-neutral-50 hover:bg-neutral-50/50">
+              <td className="px-4 py-2 font-semibold text-neutral-500">{s.position}º</td>
+              <td className="px-4 py-2 font-medium text-neutral-900">{s.name}</td>
+              <td className="px-4 py-2 text-right font-semibold text-[#9B2D3E]">{s.pointsValid}</td>
+              {s.positionDelta !== undefined && (
+                <td className={`px-4 py-2 text-right text-xs font-semibold ${
+                  s.positionDelta > 0 ? 'text-emerald-600' : s.positionDelta < 0 ? 'text-red-500' : 'text-neutral-400'
+                }`}>
+                  {s.positionDelta > 0 ? `▲${s.positionDelta}` : s.positionDelta < 0 ? `▼${Math.abs(s.positionDelta)}` : '—'}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  // ── Preview: round result ───────────────────────────────────────────
+  if (step === 'preview-round' && roundPreview) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <p className="text-xs text-neutral-400 mb-1">Prévia — Resultado da Etapa (passo 1 de 2)</p>
+          <h1 className="text-xl font-semibold text-neutral-900">
+            {round.number}ª Etapa — Resultado por quadra
+          </h1>
+        </div>
+
+        {roundPreview.courts.map((court) => (
+          <div key={court.label} className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-4">
+            <div className="px-5 py-3 border-b border-neutral-100 bg-neutral-50/50">
+              <p className="font-semibold text-neutral-700 text-sm uppercase tracking-wide">{court.label}</p>
+            </div>
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-xs text-neutral-400 uppercase tracking-wide border-b border-neutral-100">
+                  <th className="px-4 py-2 text-left">Colocação</th>
+                  <th className="px-4 py-2 text-left">Dupla</th>
+                  <th className="px-4 py-2 text-right">Pts</th>
+                  <th className="px-4 py-2 text-right">Sets V/D</th>
+                  <th className="px-4 py-2 text-right">Games V/D</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...court.pairs].sort((a, b) => (a.position ?? 99) - (b.position ?? 99)).map((p, i) => (
+                  <tr key={i} className="border-b border-neutral-50">
+                    <td className="px-4 py-2.5 font-bold text-neutral-600">{p.position ?? '?'}º</td>
+                    <td className="px-4 py-2.5 text-neutral-900">{p.playerA} / {p.playerB}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-[#9B2D3E]">{p.points}</td>
+                    <td className="px-4 py-2.5 text-right text-neutral-500">{p.setsWon}/{p.setsLost}</td>
+                    <td className="px-4 py-2.5 text-right text-neutral-500">{p.gamesWon}/{p.gamesLost}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+
+        {roundPreview.sorteados.length > 0 && (
+          <div className="bg-white rounded-2xl border border-neutral-200/80 px-5 py-4 mb-4">
+            <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Sorteados</p>
+            {roundPreview.sorteados.map((s, i) => (
+              <div key={i} className="flex justify-between text-sm py-1">
+                <span className="text-neutral-800">{s.name}</span>
+                <span className="text-neutral-500">{s.type === 'sorteio_a_pedido' ? '60 pts (a pedido)' : '80 pts (sorteio)'}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {roundPreview.absents.length > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
+            <strong>Ausentes detectados:</strong> {roundPreview.absents.join(', ')} — 0 pts (falta)
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setStep('form')}
+            className="flex-1 border border-neutral-200 text-neutral-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-neutral-50"
+          >
+            ← Voltar e corrigir
+          </button>
+          <button
+            type="button"
+            onClick={handlePreviewStandings}
+            disabled={simulatingStandings}
+            className="flex-1 bg-[#9B2D3E] hover:bg-[#8B2942] text-white px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors"
+          >
+            {simulatingStandings ? 'Calculando…' : 'Ver classificação geral →'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Preview: general standings ──────────────────────────────────────
+  if (step === 'preview-standings' && standingsPreview) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <p className="text-xs text-neutral-400 mb-1">Prévia — Classificação Geral (passo 2 de 2)</p>
+          <h1 className="text-xl font-semibold text-neutral-900">
+            Classificação projetada — {round.group === 'F' ? 'Feminino' : 'Masculino'}
+          </h1>
+          <p className="text-xs text-neutral-400 mt-1">▲/▼ variação em relação à classificação atual</p>
+        </div>
+
+        <StandingsTable data={standingsPreview} title={`Classificação após ${round.number}ª Etapa`} />
+
+        {errors.length > 0 && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+            {errors.map((e, i) => <p key={i} className="text-sm text-red-700">{e}</p>)}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setStep('preview-round')}
+            className="flex-1 border border-neutral-200 text-neutral-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-neutral-50"
+          >
+            ← Voltar
+          </button>
+          <button
+            type="button"
+            onClick={() => { setStep('form'); setErrors([]); }}
+            className="border border-neutral-200 text-neutral-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-neutral-50"
+          >
+            Corrigir
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex-1 bg-[#9B2D3E] hover:bg-[#8B2942] text-white px-4 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors"
+          >
+            {submitting ? 'Salvando…' : 'Confirmar e salvar'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Done screen ─────────────────────────────────────────────────────
+  if (step === 'done') {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6 text-center">
@@ -595,38 +907,9 @@ export default function EtapaInput() {
           <p className="text-sm text-emerald-700 mt-1">Classificação recalculada com sucesso.</p>
         </div>
 
-        {absents.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-sm text-amber-800">
-            <strong>Ausentes detectados automaticamente:</strong>{' '}
-            {absents.join(', ')}
-          </div>
+        {Array.isArray(standingsPreview) && (
+          <StandingsTable data={standingsPreview} title={`Classificação — ${round.group === 'F' ? 'Feminino' : 'Masculino'}`} />
         )}
-
-        <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-6">
-          <div className="px-5 py-4 border-b border-neutral-100">
-            <h3 className="font-semibold text-neutral-900">Classificação atualizada — {round.group === 'F' ? 'Feminino' : 'Masculino'}</h3>
-          </div>
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="bg-neutral-50 border-b border-neutral-100 text-xs text-neutral-400 uppercase tracking-wide">
-                <th className="px-4 py-2 text-left">#</th>
-                <th className="px-4 py-2 text-left">Atleta</th>
-                <th className="px-4 py-2 text-right">Pts Válidos</th>
-                <th className="px-4 py-2 text-right">Part.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {standings.slice(0, 20).map((s) => (
-                <tr key={s.participantId} className="border-b border-neutral-50 hover:bg-neutral-50/50">
-                  <td className="px-4 py-2 font-semibold text-neutral-500">{s.position}º</td>
-                  <td className="px-4 py-2 font-medium text-neutral-900">{s.name}</td>
-                  <td className="px-4 py-2 text-right font-semibold text-[#9B2D3E]">{s.pointsValid}</td>
-                  <td className="px-4 py-2 text-right text-neutral-500">{s.roundsPlayed}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
 
         <div className="flex gap-3 flex-wrap">
           <Link
@@ -635,22 +918,12 @@ export default function EtapaInput() {
           >
             Voltar às etapas
           </Link>
-          <button
-            type="button"
-            onClick={handleDeleteResults}
-            disabled={deleting}
-            className="flex items-center gap-1.5 border border-red-200 text-red-600 hover:bg-red-50 px-4 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            {deleting ? 'Apagando…' : 'Apagar resultados'}
-          </button>
+          <DeleteBtn />
           <Link
             to={`/admin/t/${slug}/etapa/${id}/manual`}
             className="flex-1 text-center bg-[#9B2D3E] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#8B2942]"
           >
-            Ajuste manual (avançado)
+            Ajuste manual
           </Link>
         </div>
       </div>
@@ -813,16 +1086,15 @@ export default function EtapaInput() {
       {/* Submit */}
       <button
         type="button"
-        onClick={handleSubmit}
-        disabled={submitting}
-        className="w-full bg-[#9B2D3E] hover:bg-[#8B2942] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 transition-colors"
+        onClick={handlePreviewRound}
+        className="w-full bg-[#9B2D3E] hover:bg-[#8B2942] text-white py-3 rounded-xl font-semibold text-sm transition-colors"
       >
-        {submitting ? 'Salvando...' : 'Salvar Resultados'}
+        Ver prévia dos resultados →
       </button>
 
       <p className="text-xs text-neutral-400 text-center mt-3">
-        Posições são calculadas automaticamente pela lógica de dupla derrota.
-        Ausentes são detectados a partir da lista de participantes inscritos.
+        Posições calculadas pela dupla derrota. Ausentes detectados automaticamente.
+        Os resultados só são salvos após confirmar na prévia.
       </p>
     </div>
   );
