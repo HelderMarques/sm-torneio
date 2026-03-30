@@ -3,6 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const { randomUUID } = require('crypto');
 const authMiddleware = require('../middleware/auth');
 const { recalculateStandings, getPointsForResult, getStandings } = require('../services/standingsService');
+const { loadSettings } = require('../utils/settings');
 
 const router = express.Router({ mergeParams: true });
 const prisma = new PrismaClient();
@@ -252,10 +253,12 @@ router.post('/:id/results', authMiddleware, async (req, res) => {
     // Delete existing results for this round
     await prisma.roundResult.deleteMany({ where: { roundId } });
 
+    const settings = await loadSettings();
+
     // Create new results
     const created = [];
     for (const r of results) {
-      const pointsRaw = getPointsForResult(r);
+      const pointsRaw = getPointsForResult(r, settings);
       const result = await prisma.roundResult.create({
         data: {
           roundId,
@@ -311,7 +314,8 @@ router.put('/:id/results/:participantId', authMiddleware, async (req, res) => {
         where: { roundId_participantId: { roundId, participantId } },
       });
       const merged = { ...existing, ...data };
-      data.pointsRaw = getPointsForResult(merged);
+      const settings = await loadSettings();
+      data.pointsRaw = getPointsForResult(merged, settings);
     }
 
     const result = await prisma.roundResult.update({
@@ -505,6 +509,8 @@ router.post('/:id/court-results', authMiddleware, async (req, res) => {
     // Absent = active participants not in any court or sorteados
     const absentParticipants = allParticipants.filter((p) => !usedIds.has(p.id));
 
+    const settings = await loadSettings();
+
     // Build results + matches
     const allResults = [];
     const allMatches = [];
@@ -563,7 +569,7 @@ router.post('/:id/court-results', authMiddleware, async (req, res) => {
             gamesLost: gamesLost[i],
             uniformPenalty: 0,
           };
-          rec.pointsRaw = getPointsForResult(rec);
+          rec.pointsRaw = getPointsForResult(rec, settings);
           allResults.push(rec);
         });
       });
@@ -581,7 +587,7 @@ router.post('/:id/court-results', authMiddleware, async (req, res) => {
         setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0,
         uniformPenalty: 0,
       };
-      rec.pointsRaw = getPointsForResult(rec);
+      rec.pointsRaw = getPointsForResult(rec, settings);
       allResults.push(rec);
     });
 
