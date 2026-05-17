@@ -30,6 +30,7 @@ app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/tournaments/:tournamentSlug/participants', tournamentMiddleware, participantRoutes);
 app.use('/api/tournaments/:tournamentSlug/rounds', tournamentMiddleware, roundRoutes);
 app.use('/api/tournaments/:tournamentSlug/standings', tournamentMiddleware, standingsRoutes);
+app.use('/api/tournaments/:tournamentSlug/simulacao', tournamentMiddleware, require('./routes/simulacao'));
 
 // Global settings (not tournament-scoped)
 app.use('/api/settings', settingsRoutes);
