@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
 import StandingsTable from '../components/StandingsTable';
+import SimulacaoButton from '../components/SimulacaoButton';
 
 export default function Classificacao() {
   const { group } = useParams();
@@ -48,6 +49,12 @@ export default function Classificacao() {
           </Link>
         </div>
       </div>
+
+      {groupKey === 'F' && (
+        <div className="mb-6 flex justify-end">
+          <SimulacaoButton group="F" />
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden">
         {loading ? (
