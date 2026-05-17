@@ -5,8 +5,11 @@ const { nowInTimezone, isWithinWindow } = require('../utils/timeWindow');
 const router = express.Router({ mergeParams: true });
 const prisma = new PrismaClient();
 
-const WINDOW_START = 7;
-const WINDOW_END = 19;
+// Janela horária no dia da etapa (America/Sao_Paulo).
+// Atualmente: dia inteiro (00:00–23:59). Para restringir, ajustar:
+//   WINDOW_START=7, WINDOW_END=19 → das 7h às 19h (exclusive).
+const WINDOW_START = 0;
+const WINDOW_END = 24;
 const TIMEZONE = 'America/Sao_Paulo';
 
 /**

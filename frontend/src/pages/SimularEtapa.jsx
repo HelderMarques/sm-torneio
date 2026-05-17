@@ -91,7 +91,7 @@ export default function SimularEtapa() {
     const messages = {
       desativado: 'A simulação está desativada pelo admin.',
       sem_etapa_hoje: 'A simulação só fica disponível no dia de uma etapa do Feminino.',
-      fora_da_janela: 'A simulação só funciona entre 7h e 19h no dia da etapa.',
+      fora_da_janela: 'A simulação está fora da janela horária permitida no dia da etapa.',
       etapa_concluida: 'A etapa de hoje já foi finalizada.',
     };
     return (
