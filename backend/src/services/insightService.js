@@ -63,19 +63,19 @@ async function generateInsight({ viewer, simulatedStandings }) {
   }
   try {
     const userPrompt = buildUserPrompt({ viewer, simulatedStandings });
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    const resp = await c.messages.create({
+    // Defensive timeout via Promise.race (in case SDK signal isn't honored)
+    const sdkCall = c.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
       system: [
         { type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
       ],
       messages: [{ role: 'user', content: userPrompt }],
-    }, { signal: controller.signal });
-
-    clearTimeout(timer);
+    });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`insight timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+    );
+    const resp = await Promise.race([sdkCall, timeoutPromise]);
     const text = resp.content?.[0]?.type === 'text' ? resp.content[0].text.trim() : null;
     return text || null;
   } catch (err) {

@@ -89,6 +89,35 @@ router.post('/simular', async (req, res) => {
     const dups = positions.filter((p, i) => positions.indexOf(p) !== i);
     if (dups.length > 0) return res.status(400).json({ error: 'Cada posição só pode ter uma dupla' });
 
+    // Whitelist: todos os IDs em duplas e absentees devem pertencer a atletas
+    // ativas do mesmo torneio e grupo.
+    const incomingIds = new Set();
+    for (const d of duplas) {
+      if (d.playerAId) incomingIds.add(d.playerAId);
+      if (d.playerBId) incomingIds.add(d.playerBId);
+    }
+    for (const a of absentees || []) {
+      if (a.participantId) incomingIds.add(a.participantId);
+    }
+    if (incomingIds.size > 0) {
+      const validIds = await prisma.participant.findMany({
+        where: {
+          id: { in: Array.from(incomingIds) },
+          tournamentId: tournament.id,
+          group: grp,
+          active: true,
+        },
+        select: { id: true },
+      });
+      const validSet = new Set(validIds.map((p) => p.id));
+      const invalid = Array.from(incomingIds).filter((id) => !validSet.has(id));
+      if (invalid.length > 0) {
+        return res.status(400).json({
+          error: `IDs de atleta inválidos ou não-ativas no grupo ${grp}: ${invalid.join(', ')}`,
+        });
+      }
+    }
+
     // Monta simulatedResults
     let simulatedResults;
     try {

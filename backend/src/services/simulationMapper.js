@@ -41,8 +41,8 @@ function buildSimulatedResults({ absentees = [], duplas = [] }) {
     if (d.playerAId === d.playerBId) {
       throw Object.assign(new Error('Os 2 jogadores da dupla precisam ser diferentes'), { code: 400 });
     }
-    if (!d.position || d.position < 1 || d.position > 7) {
-      throw Object.assign(new Error('Posição da dupla deve ser entre 1 e 7'), { code: 400 });
+    if (!d.position || d.position < 1 || d.position > 6) {
+      throw Object.assign(new Error('Posição da dupla deve ser entre 1 e 6'), { code: 400 });
     }
     for (const pid of [d.playerAId, d.playerBId]) {
       if (seen.has(pid)) {
