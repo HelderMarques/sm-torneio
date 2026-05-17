@@ -101,14 +101,6 @@ export default function Home() {
               {daysUntilNext === 0 ? 'Hoje!' : `${daysUntilNext} dia${daysUntilNext === 1 ? '' : 's'}`}
             </span>
           </div>
-          {tournament?.simulateEnabled && (
-            <Link
-              to={`/t/${slug}/simular`}
-              className="text-xs font-medium text-[#9B2D3E] hover:text-[#8B2942] bg-[#9B2D3E]/5 px-3 py-1.5 rounded-full"
-            >
-              Simular etapa →
-            </Link>
-          )}
         </div>
       )}
 
