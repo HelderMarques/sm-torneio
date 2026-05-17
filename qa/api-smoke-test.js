@@ -245,6 +245,26 @@ test('12.7', 'Settings: valores padrão corretos no banco', async () => {
   }
 });
 
+// 13.x — Simulação Feminino endpoints
+test('SIM-1', 'GET /simulacao/availability retorna estrutura esperada', async () => {
+  const r = await get(`/api/tournaments/${TEST_SLUG}/simulacao/availability?group=F`);
+  assert(r.status === 200, `HTTP ${r.status}`);
+  assert(typeof r.body.available === 'boolean', `available não é boolean: ${typeof r.body.available}`);
+  if (r.body.available === false) {
+    assert(r.body.reason, 'reason ausente quando indisponível');
+  }
+});
+
+test('SIM-2', 'GET /simulacao/availability rejeita group inválido', async () => {
+  const r = await get(`/api/tournaments/${TEST_SLUG}/simulacao/availability?group=X`);
+  assert(r.status === 400, `esperado 400, recebido ${r.status}`);
+});
+
+test('SIM-3', 'POST /simulacao/simular rejeita body vazio com 400 ou 403', async () => {
+  const r = await post(`/api/tournaments/${TEST_SLUG}/simulacao/simular`, {});
+  assert([400, 403].includes(r.status), `esperado 400 ou 403, recebido ${r.status}`);
+});
+
 // ── Run ───────────────────────────────────────────────────────────────────────
 runAll().catch((err) => {
   console.error('Erro fatal no runner:', err);
