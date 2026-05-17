@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
 import StandingsTable from '../components/StandingsTable';
+import SimulacaoButton from '../components/SimulacaoButton';
 
 const GROUPS = [
   { key: 'F', label: 'Feminino' },
@@ -101,6 +102,7 @@ export default function Home() {
               {daysUntilNext === 0 ? 'Hoje!' : `${daysUntilNext} dia${daysUntilNext === 1 ? '' : 's'}`}
             </span>
           </div>
+          <SimulacaoButton group="F" />
         </div>
       )}
 
