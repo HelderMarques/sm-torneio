@@ -41,9 +41,8 @@ router.get('/availability', async (req, res) => {
     if (etapa.status === 'COMPLETED') {
       return res.json({ available: false, reason: 'etapa_concluida', etapa });
     }
-    if (!isWithinWindow(hour, WINDOW_START, WINDOW_END)) {
-      return res.json({ available: false, reason: 'fora_da_janela', etapa });
-    }
+    // Janela horária desativada — controle único é o toggle simulateEnabled.
+    // Para reativar: usar `if (!isWithinWindow(hour, WINDOW_START, WINDOW_END))`
     return res.json({ available: true, reason: null, etapa });
   } catch (err) {
     console.error('Error in /simulacao/availability:', err);
@@ -70,14 +69,14 @@ router.post('/simular', async (req, res) => {
       return res.status(400).json({ error: 'pelo menos 2 duplas são necessárias' });
     }
 
-    // Revalida janela
+    // Revalida disponibilidade (toggle + etapa do dia)
     const tournament = req.tournament;
     if (!tournament.simulateEnabled) return res.status(403).json({ error: 'Simulação desativada' });
-    const { date, hour } = nowInTimezone(TIMEZONE);
+    const { date } = nowInTimezone(TIMEZONE);
     const etapa = await prisma.round.findFirst({
       where: { tournamentId: tournament.id, group: grp, date },
     });
-    if (!etapa || etapa.status === 'COMPLETED' || !isWithinWindow(hour, WINDOW_START, WINDOW_END)) {
+    if (!etapa || etapa.status === 'COMPLETED') {
       return res.status(403).json({ error: 'Simulação fora da janela permitida' });
     }
 
