@@ -1,0 +1,67 @@
+﻿categoria;quadra;dupla_codigo;jogador_1;jogador_2;jogo;placar_favor;placar_contra;resultado;pontos;colocacao;observacoes
+Torneio;4;6A;Núbia;Ana;1º Jogo;1;5;Derrota;50;5º Lugar;
+Torneio;4;6A;Núbia;Ana;4º Jogo;4;5;Derrota;50;5º Lugar;
+Torneio;4;6B;Letícia;Rose;1º Jogo;5;1;Vitória;70;3º Lugar;
+Torneio;4;6B;Letícia;Rose;3º Jogo;5;2;Vitória;70;3º Lugar;
+Torneio;4;6B;Letícia;Rose;6º Jogo;2;5;Derrota;70;3º Lugar;
+Torneio;4;6B;Letícia;Rose;7º Jogo;3;5;Derrota;70;3º Lugar;
+Torneio;4;6C;Natalia;Mariana;2º Jogo;5;3;Vitória;100;Campeão;
+Torneio;4;6C;Natalia;Mariana;6º Jogo;5;2;Vitória;100;Campeão;
+Torneio;4;6C;Natalia;Mariana;8º Jogo;5;0;Vitória;100;Campeão;
+Torneio;4;6D;Giovana;Jeovana;2º Jogo;3;5;Derrota;80;Vice-campeão;
+Torneio;4;6D;Giovana;Jeovana;4º Jogo;5;4;Vitória;80;Vice-campeão;
+Torneio;4;6D;Giovana;Jeovana;5º Jogo;5;3;Vitória;80;Vice-campeão;
+Torneio;4;6D;Giovana;Jeovana;7º Jogo;5;3;Vitória;80;Vice-campeão;
+Torneio;4;6D;Giovana;Jeovana;8º Jogo;0;5;Derrota;80;Vice-campeão;
+Torneio;4;6E;Andrea;Sandra;3º Jogo;2;5;Derrota;60;4º Lugar;
+Torneio;4;6E;Andrea;Sandra;5º Jogo;3;5;Derrota;60;4º Lugar;
+Torneio;5;7A;Vitor;Gustavo;1º Jogo;5;3;Vitória;100;Campeão;
+Torneio;5;7A;Vitor;Gustavo;3º Jogo;5;2;Vitória;100;Campeão;
+Torneio;5;7A;Vitor;Gustavo;7º Jogo;5;4;Vitória;100;Campeão;
+Torneio;5;7A;Vitor;Gustavo;10º Jogo;5;3;Vitória;100;Campeão;
+Torneio;5;7B;Flavio;Foguete;1º Jogo;3;5;Derrota;60;4º Lugar;
+Torneio;5;7B;Flavio;Foguete;5º Jogo;5;2;Vitória;60;4º Lugar;
+Torneio;5;7B;Flavio;Foguete;8º Jogo;3;5;Derrota;60;4º Lugar;
+Torneio;5;7C;Vita;Cláudio;2º Jogo;5;3;Vitória;50;5º Lugar;
+Torneio;5;7C;Vita;Cláudio;4º Jogo;3;5;Derrota;50;5º Lugar;
+Torneio;5;7C;Vita;Cláudio;6º Jogo;1;5;Derrota;50;5º Lugar;
+Torneio;5;7D;Colonese;Vanzillota;2º Jogo;3;5;Derrota;40;6º Lugar;
+Torneio;5;7D;Colonese;Vanzillota;5º Jogo;2;5;Derrota;40;6º Lugar;
+Torneio;5;7E;Lincoln;Edu Caetano;3º Jogo;2;5;Derrota;70;3º Lugar;
+Torneio;5;7E;Lincoln;Edu Caetano;6º Jogo;5;1;Vitória;70;3º Lugar;
+Torneio;5;7E;Lincoln;Edu Caetano;8º Jogo;5;3;Vitória;70;3º Lugar;
+Torneio;5;7E;Lincoln;Edu Caetano;9º Jogo;3;5;Derrota;70;3º Lugar;
+Torneio;5;7F;Aranha;Fitipaldi;4º Jogo;5;3;Vitória;80;Vice-campeão;
+Torneio;5;7F;Aranha;Fitipaldi;7º Jogo;4;5;Derrota;80;Vice-campeão;
+Torneio;5;7F;Aranha;Fitipaldi;9º Jogo;5;3;Vitória;80;Vice-campeão;
+Torneio;5;7F;Aranha;Fitipaldi;10º Jogo;3;5;Derrota;80;Vice-campeão;
+Torneio;Estrela;8A;Neco;Michel;1º Jogo;2;5;Derrota;60;4º Lugar;
+Torneio;Estrela;8A;Neco;Michel;5º Jogo;5;3;Vitória;60;4º Lugar;
+Torneio;Estrela;8A;Neco;Michel;8º Jogo;2;5;Derrota;60;4º Lugar;
+Torneio;Estrela;8B;Luiz Henrique;Júlio Cesar;1º Jogo;5;2;Vitória;50;5º Lugar;
+Torneio;Estrela;8B;Luiz Henrique;Júlio Cesar;3º Jogo;1;5;Derrota;50;5º Lugar;
+Torneio;Estrela;8B;Luiz Henrique;Júlio Cesar;6º Jogo;4;5;Derrota;50;5º Lugar;
+Torneio;Estrela;8C;Edu Carneiro;Bottino;2º Jogo;0;5;Derrota;40;6º Lugar;
+Torneio;Estrela;8C;Edu Carneiro;Bottino;5º Jogo;3;5;Derrota;40;6º Lugar;
+Torneio;Estrela;8D;Reco;José Felipe;2º Jogo;5;0;Vitória;80;Vice-campeão;
+Torneio;Estrela;8D;Reco;José Felipe;4º Jogo;5;2;Vitória;80;Vice-campeão;
+Torneio;Estrela;8D;Reco;José Felipe;7º Jogo;2;5;Derrota;80;Vice-campeão;
+Torneio;Estrela;8D;Reco;José Felipe;9º Jogo;5;4;Vitória;80;Vice-campeão;
+Torneio;Estrela;8D;Reco;José Felipe;10º Jogo;5;1;Vitória;80;Vice-campeão;
+Torneio;Estrela;8D;Reco;José Felipe;11º Jogo;1;5;Derrota;80;Vice-campeão;
+Torneio;Estrela;8E;João Reis;Fernando;3º Jogo;5;1;Vitória;100;Campeão;
+Torneio;Estrela;8E;João Reis;Fernando;7º Jogo;5;2;Vitória;100;Campeão;
+Torneio;Estrela;8E;João Reis;Fernando;10º Jogo;1;5;Derrota;100;Campeão;
+Torneio;Estrela;8E;João Reis;Fernando;11º Jogo;5;1;Vitória;100;Campeão;
+Torneio;Estrela;8F;Romulo;Tuninho;4º Jogo;2;5;Derrota;70;3º Lugar;
+Torneio;Estrela;8F;Romulo;Tuninho;6º Jogo;5;4;Vitória;70;3º Lugar;
+Torneio;Estrela;8F;Romulo;Tuninho;8º Jogo;5;2;Vitória;70;3º Lugar;
+Torneio;Estrela;8F;Romulo;Tuninho;9º Jogo;4;5;Derrota;70;3º Lugar;
+Falta;;;Adriane;;;;;Ausente;;;Lista de faltas do PDF
+Falta;;;Cristina;;;;;Ausente;;;Lista de faltas do PDF
+Falta;;;Valéria;;;;;Ausente;;;Lista de faltas do PDF
+Falta;;;Cascardo;;;;;Ausente;;;Lista de faltas do PDF
+Falta;;;Helder;;;;;Ausente;;;Lista de faltas do PDF
+Falta;;;João Barreto;;;;;Ausente;;;Lista de faltas do PDF
+Falta;;;Taylor;;;;;Ausente;;;Lista de faltas do PDF
+Sorteio Feminino;;;Kátia;;;;;;80;;Registro separado no PDF como Sorteio Feminino

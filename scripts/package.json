@@ -1,0 +1,10 @@
+{
+  "name": "sm-torneio-scripts",
+  "version": "1.0.0",
+  "description": "Scripts utilitários — importação de etapas, etc.",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "pdfjs-dist": "^5.0.0"
+  }
+}
