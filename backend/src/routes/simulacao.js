@@ -50,6 +50,7 @@ router.get('/availability', async (req, res) => {
 
 const { buildSimulatedResults } = require('../services/simulationMapper');
 const { simulateStandings } = require('../services/standingsService');
+const { generateInsight } = require('../services/insightService');
 
 /**
  * POST /simular
@@ -117,6 +118,26 @@ router.post('/simular', async (req, res) => {
     // Encontra a viewer no resultado
     const viewerStanding = standings.find((s) => s.participantId === viewerParticipantId);
 
+    // Gera insight (não bloqueia em caso de erro)
+    let insight = null;
+    if (viewerStanding) {
+      try {
+        insight = await generateInsight({
+          viewer: {
+            name: viewerStanding.name,
+            oldPosition: viewerStanding.oldPosition,
+            newPosition: viewerStanding.position,
+            delta: viewerStanding.positionDelta,
+            oldPoints: viewerStanding.oldPointsValid,
+            newPoints: viewerStanding.pointsValid,
+          },
+          simulatedStandings: standings,
+        });
+      } catch (err) {
+        console.error('[POST /simular] Erro no insight:', err.message);
+      }
+    }
+
     res.json({
       standings,
       viewer: viewerStanding ? {
@@ -128,7 +149,7 @@ router.post('/simular', async (req, res) => {
         oldPoints: viewerStanding.oldPointsValid,
         newPoints: viewerStanding.pointsValid,
       } : null,
-      insight: null, // será adicionado na Task 7
+      insight,
     });
   } catch (err) {
     console.error('Error in /simulacao/simular:', err);
