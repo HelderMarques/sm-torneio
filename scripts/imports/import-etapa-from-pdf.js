@@ -33,22 +33,26 @@ if (fs.existsSync(ENV_FILE)) {
   }
 }
 
-const args = Object.fromEntries(process.argv.slice(2).map(a => {
-  const [k, ...rest] = a.replace(/^--/, '').split('=');
-  return [k, rest.join('=') || true];
-}));
-const PDF_PATH = args.pdf;
-const MODE = (args.mode || 'apply').toLowerCase();
+// Argumentos e validação só rodam quando o script é invocado como CLI —
+// não quando carregado via require() pelos testes.
+let PDF_PATH, MODE;
 const API_BASE_URL = process.env.API_BASE_URL || 'https://www.sm-ttc.com.br/api';
 const TOURNAMENT_SLUG = process.env.TOURNAMENT_SLUG || '2026';
-
-if (!PDF_PATH) {
-  console.error('ERRO: --pdf=<caminho> é obrigatório');
-  process.exit(2);
-}
-if (!fs.existsSync(PDF_PATH)) {
-  console.error(`ERRO: PDF não encontrado: ${PDF_PATH}`);
-  process.exit(2);
+if (require.main === module) {
+  const args = Object.fromEntries(process.argv.slice(2).map(a => {
+    const [k, ...rest] = a.replace(/^--/, '').split('=');
+    return [k, rest.join('=') || true];
+  }));
+  PDF_PATH = args.pdf;
+  MODE = (args.mode || 'apply').toLowerCase();
+  if (!PDF_PATH) {
+    console.error('ERRO: --pdf=<caminho> é obrigatório');
+    process.exit(2);
+  }
+  if (!fs.existsSync(PDF_PATH)) {
+    console.error(`ERRO: PDF não encontrado: ${PDF_PATH}`);
+    process.exit(2);
+  }
 }
 
 // ============================================================================
@@ -115,12 +119,20 @@ function parsePdf(items) {
   }
   if (JOGO_X.length === 0) throw new Error('Não consegui detectar os cabeçalhos "Nº Jogo" no PDF.');
 
-  // 4) Parse pair rows: rows with a label like "6A", "7B", "8C"
+  // 4) Parse pair rows: rows with a label like "6A", "7B", "8C", "7G" (any uppercase letter)
   const pairRows = [];
   for (const yKey of Object.keys(byY).map(Number).sort((a, b) => b - a)) {
     const row = byY[yKey].sort((a, b) => a.x - b.x);
-    const labelItem = row.find(i => /^(\d[A-F])$/.test(i.str.trim()));
+    const labelItem = row.find(i => /^(\d[A-Z])$/.test(i.str.trim()));
     if (!labelItem) continue;
+
+    // Court label: leftmost text item before the pair label (e.g. "Q4", "Est.", "4").
+    // We read this directly from the PDF because the convention varies across months
+    // (Abril used "4"/"5"/"EST.", Maio used "Q4"/"Q5"/"Est.").
+    const courtLabelItem = row
+      .filter(i => i.x < labelItem.x && i.str.trim())
+      .sort((a, b) => a.x - b.x)[0];
+    const rawCourtLabel = courtLabelItem?.str.trim() || null;
 
     const literalXs = row.filter(i => i.str.trim().toLowerCase() === 'x');
     const digits = row.filter(i => /^\d+$/.test(i.str.trim()));
@@ -158,6 +170,7 @@ function parsePdf(items) {
     pairRows.push({
       y: yKey,
       label: labelItem.str.trim(),
+      rawCourtLabel,
       games,
       position,
       playerA,
@@ -242,7 +255,33 @@ const POS_BY_LABEL = {
   '5 LUGAR': 5, '5º LUGAR': 5,
   '6 LUGAR': 6, '6º LUGAR': 6,
   '7 LUGAR': 7, '7º LUGAR': 7,
+  '8 LUGAR': 8, '8º LUGAR': 8,
 };
+
+// Canonicaliza o rótulo de quadra lido do PDF para o formato esperado pela API.
+// Convenção observada nos PDFs:
+//   Abril/2026: "4" / "5" / "EST."     → "Quadra 4" / "Quadra 5" / "Estádio"
+//   Maio/2026:  "Q4" / "Q5" / "Est."   → "Quadra 4" / "Quadra 5" / "Estádio"
+// Aceita também: "Quadra 4", "Estádio" (já canônicos) e variações de caixa/acento.
+function canonicalCourtLabel(raw) {
+  if (!raw) return null;
+  const t = String(raw).trim().replace(/\.$/, '').trim();
+  if (!t) return null;
+  if (/^est(adio|ádio)?$/i.test(t)) return 'Estádio';
+  const qMatch = t.match(/^(?:Q|Quadra)\s*(\d+)$/i);
+  if (qMatch) return `Quadra ${qMatch[1]}`;
+  if (/^\d+$/.test(t)) return `Quadra ${t}`;
+  return t;
+}
+
+// ============================================================================
+// Exports (para testes de regressão)
+// ============================================================================
+
+module.exports = { extractItems, parsePdf, canonicalCourtLabel, computeDoubleLossPositions, POS_BY_LABEL };
+
+// Quando carregado via require() (testes), não executa o main.
+if (require.main !== module) return;
 
 // ============================================================================
 // MAIN
@@ -302,10 +341,10 @@ const POS_BY_LABEL = {
     s.group = s.group || p?.group;
   }
 
-  // ---- 4. Build courts (pairs grouped by their pair-label-prefix and group) ----
+  // ---- 4. Build courts (pairs grouped by their pair-label-prefix) ----
   // Court detection: pairs sharing the same numeric label prefix (6, 7, 8) form a court.
-  // Court labels: 4 → "Quadra 4" (5 pairs), 5 → "Quadra 5" (varies), 8 → "Estádio".
-  // For the public API, the court label is informational; backend uses it as a string.
+  // The actual court display label ("Quadra 4", "Estádio", …) is read from the PDF —
+  // the convention varies per month (Abril: "4"/"5"/"EST.", Maio: "Q4"/"Q5"/"Est.").
   console.log('\n[4/7] Agrupando duplas em quadras…');
   const courtsByGroup = { F: [], M: [] };
   const byPrefix = {};
@@ -315,17 +354,18 @@ const POS_BY_LABEL = {
     byPrefix[prefix].push(pr);
   }
 
-  // Map prefix → courtLabel (heurística baseada na convenção observada)
-  function courtLabelForPrefix(prefix, group) {
-    if (prefix === '8') return 'Estádio';
-    return `Quadra ${prefix === '6' ? '4' : prefix === '7' ? '5' : prefix}`;
-  }
-
   for (const [prefix, prs] of Object.entries(byPrefix)) {
     if (prs.length === 0) continue;
     const group = prs[0].group;
     if (!group) continue;
-    const courtLabel = courtLabelForPrefix(prefix, group);
+    const rawLabels = [...new Set(prs.map(pr => pr.rawCourtLabel).filter(Boolean))];
+    if (rawLabels.length > 1) {
+      warnings.push(`Prefixo ${prefix}: rótulos de quadra divergentes no PDF: ${rawLabels.join(', ')}. Usando "${rawLabels[0]}".`);
+    }
+    const courtLabel = canonicalCourtLabel(rawLabels[0]) || `Quadra ${prefix}`;
+    if (!rawLabels.length) {
+      warnings.push(`Prefixo ${prefix}: PDF não tinha rótulo de quadra; usando fallback "${courtLabel}".`);
+    }
     const pairs = prs.map(pr => ({ playerA: pr.resolvedA?.name || pr.playerA, playerB: pr.resolvedB?.name || pr.playerB, _pr: pr }));
     const labels = prs.map(pr => pr.label);
     const games = [];
