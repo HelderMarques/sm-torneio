@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
 import StandingsTable from '../components/StandingsTable';
+import AproveitamentoTable from '../components/AproveitamentoTable';
 import SimulacaoButton from '../components/SimulacaoButton';
 
 const GROUPS = [
@@ -16,6 +17,7 @@ export default function Home() {
   const [rounds, setRounds] = useState([]);
   const [lastRoundPodium, setLastRoundPodium] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState('pontuacao'); // 'pontuacao' | 'aproveitamento'
 
   useEffect(() => {
     setLoading(true);
@@ -152,24 +154,48 @@ export default function Home() {
       <div className="bg-white rounded-2xl border border-neutral-200/80 overflow-hidden mb-8">
         <div className="p-5 border-b border-neutral-100 flex items-center justify-between flex-wrap gap-3">
           <h2 className="text-lg font-semibold text-neutral-900">🎾 Classificação</h2>
-          <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
-            {GROUPS.map((g) => (
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
               <button
-                key={g.key}
                 type="button"
-                onClick={() => setGroup(g.key)}
+                onClick={() => setMode('pontuacao')}
                 className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                  group === g.key
-                    ? 'bg-white text-neutral-900 shadow-sm'
-                    : 'text-neutral-500 hover:text-neutral-700'
+                  mode === 'pontuacao' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
                 }`}
               >
-                {g.label}
+                Pontuação
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setMode('aproveitamento')}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  mode === 'aproveitamento' ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+                }`}
+              >
+                Aproveitamento
+              </button>
+            </div>
+            <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
+              {GROUPS.map((g) => (
+                <button
+                  key={g.key}
+                  type="button"
+                  onClick={() => setGroup(g.key)}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    group === g.key
+                      ? 'bg-white text-neutral-900 shadow-sm'
+                      : 'text-neutral-500 hover:text-neutral-700'
+                  }`}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        {loading ? (
+        {mode === 'aproveitamento' ? (
+          <AproveitamentoTable group={group} />
+        ) : loading ? (
           <div className="flex justify-center py-10">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-200 border-t-neutral-500" />
           </div>
