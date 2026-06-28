@@ -91,7 +91,7 @@ export default function AproveitamentoTable({ group }) {
                 <th className="sticky left-0 z-20 w-14 bg-neutral-50 px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">#</th>
                 <th className="sticky left-14 z-20 bg-neutral-50 px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-r border-neutral-200">Atleta</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-[#9B2D3E] uppercase tracking-wider border-b border-neutral-200 bg-red-50/60">{dimLabel} %</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200" title="Colocação oficial (pontuação)">Of.</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200" title="Colocação oficial (pontuação)">Ranking</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200" title="Variação de posições vs. ranking oficial">Var.</th>
               </tr>
             </thead>
@@ -128,7 +128,7 @@ export default function AproveitamentoTable({ group }) {
           <div className="px-4 py-3 border-t border-neutral-100 bg-neutral-50/50 text-xs text-neutral-400 flex flex-wrap gap-x-4 gap-y-1">
             <span><strong className="text-neutral-500">#</strong> Posição no ranking de aproveitamento</span>
             <span><strong className="text-neutral-500">{dimLabel} %</strong> Vitórias / total ({dim === 'partidas' ? 'partidas' : dim})</span>
-            <span><strong className="text-neutral-500">Of.</strong> Colocação oficial (pontuação)</span>
+            <span><strong className="text-neutral-500">Ranking</strong> Colocação oficial (pontuação)</span>
             <span><strong className="text-emerald-600">▲</strong> Sobe / <strong className="text-red-500">▼</strong> Desce vs. oficial</span>
             <span><strong className="text-neutral-500">—</strong> Sem dados suficientes</span>
           </div>
