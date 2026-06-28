@@ -265,6 +265,26 @@ test('SIM-3', 'POST /simulacao/simular rejeita body vazio com 400 ou 403', async
   assert([400, 403].includes(r.status), `esperado 400 ou 403, recebido ${r.status}`);
 });
 
+test('APR-1', 'GET /aproveitamento retorna {partidas,sets,games} com estrutura correta', async () => {
+  const r = await get(`/api/tournaments/${TEST_SLUG}/aproveitamento?group=F`);
+  assert(r.status === 200, `HTTP ${r.status}`);
+  for (const dim of ['partidas', 'sets', 'games']) {
+    assert(Array.isArray(r.body[dim]), `${dim} não é array`);
+    if (r.body[dim].length > 0) {
+      const e = r.body[dim][0];
+      assert(e.participantId && e.name, `${dim}[0] sem participantId/name`);
+      assert(typeof e.position === 'number', `${dim}[0].position não é número`);
+      assert(e.rate === null || (typeof e.rate === 'number' && e.rate >= 0 && e.rate <= 1), `${dim}[0].rate inválido: ${e.rate}`);
+      assert(e.position === 1, `${dim}[0].position deveria ser 1, é ${e.position}`);
+    }
+  }
+});
+
+test('APR-2', 'GET /aproveitamento rejeita group inválido', async () => {
+  const r = await get(`/api/tournaments/${TEST_SLUG}/aproveitamento?group=X`);
+  assert(r.status === 400, `esperado 400, recebido ${r.status}`);
+});
+
 // ── Run ───────────────────────────────────────────────────────────────────────
 runAll().catch((err) => {
   console.error('Erro fatal no runner:', err);
