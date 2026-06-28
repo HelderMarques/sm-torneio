@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
+import AproveitamentoMini from '../components/AproveitamentoMini';
 
 /* ─── helpers ───────────────────────────────────────────────── */
 function initials(name) {
@@ -408,6 +409,14 @@ export default function Participante() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* ── 2b. APROVEITAMENTO (mini-rankings) ─────────────────── */}
+      <section className="mb-5">
+        <h2 className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-3 px-1">
+          Aproveitamento
+        </h2>
+        <AproveitamentoMini participantId={id} group={participant.group} />
       </section>
 
       {/* ── 3. INSIGHTS ───────────────────────────────────────── */}
