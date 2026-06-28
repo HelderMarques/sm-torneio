@@ -28,24 +28,24 @@ function group(label) {
 async function parseToCanonical(pdfPath) {
   const items = await extractItems(pdfPath);
   const parsed = parsePdf(items);
-  // Group by prefix → canonical label for downstream assertions
-  const byPrefix = {};
+  // Agrupa por rawCourtLabel — funciona tanto para PDFs com coluna "Dupla"
+  // (Abril/Maio) quanto sem (Junho+).
+  const byRawCourt = {};
   for (const pr of parsed.pairRows) {
-    const prefix = pr.label[0];
-    if (!byPrefix[prefix]) byPrefix[prefix] = { rawLabels: new Set(), labels: [] };
-    byPrefix[prefix].rawLabels.add(pr.rawCourtLabel);
-    byPrefix[prefix].labels.push(pr.label);
+    const key = pr.rawCourtLabel;
+    if (!byRawCourt[key]) byRawCourt[key] = { labels: [] };
+    byRawCourt[key].labels.push(pr.label);
   }
   const courts = {};
-  for (const [prefix, info] of Object.entries(byPrefix)) {
-    const raw = [...info.rawLabels][0];
-    courts[prefix] = {
+  for (const [raw, info] of Object.entries(byRawCourt)) {
+    const canonical = canonicalCourtLabel(raw);
+    courts[canonical] = {
       raw,
-      canonical: canonicalCourtLabel(raw),
+      canonical,
       duplas: info.labels.sort(),
     };
   }
-  return { date: parsed.date, courts };
+  return { date: parsed.date, courts, sorteados: parsed.sorteados };
 }
 
 (async () => {
@@ -63,17 +63,19 @@ async function parseToCanonical(pdfPath) {
 
   const ABRIL = path.join(__dirname, '..', '..', 'RESULTADOS', 'Abril26', 'Resultados jogos Abril_2026.pdf');
   const MAIO = process.env.MAIO_PDF || '/Users/Helder/Downloads/Resultados jogos Maio_2026.pdf';
+  const JUNHO = process.env.JUNHO_PDF || '/Users/Helder/Downloads/Resultados jogos jUNHO_2026.pdf';
 
   if (fs.existsSync(ABRIL)) {
     group(`Abril/2026 (${ABRIL})`);
     const a = await parseToCanonical(ABRIL);
     assert(a.date === '2026-04-12', `data = 2026-04-12 (got ${a.date})`);
-    assert(a.courts['6']?.canonical === 'Quadra 4', `prefix 6 → Quadra 4 (got raw="${a.courts['6']?.raw}", canon="${a.courts['6']?.canonical}")`);
-    assert(a.courts['7']?.canonical === 'Quadra 5', `prefix 7 → Quadra 5 (got raw="${a.courts['7']?.raw}", canon="${a.courts['7']?.canonical}")`);
-    assert(a.courts['8']?.canonical === 'Estádio', `prefix 8 → Estádio (got raw="${a.courts['8']?.raw}", canon="${a.courts['8']?.canonical}")`);
-    assert(a.courts['6']?.duplas.length === 5, `Abril prefix 6 tem 5 duplas (got ${a.courts['6']?.duplas.length})`);
-    assert(a.courts['7']?.duplas.length === 6, `Abril prefix 7 tem 6 duplas (got ${a.courts['7']?.duplas.length})`);
-    assert(a.courts['8']?.duplas.length === 6, `Abril prefix 8 tem 6 duplas (got ${a.courts['8']?.duplas.length})`);
+    assert(a.courts['Quadra 4']?.duplas.length === 5, `Abril Quadra 4 tem 5 duplas (got ${a.courts['Quadra 4']?.duplas.length})`);
+    assert(a.courts['Quadra 5']?.duplas.length === 6, `Abril Quadra 5 tem 6 duplas (got ${a.courts['Quadra 5']?.duplas.length})`);
+    assert(a.courts['Estádio']?.duplas.length === 6, `Abril Estádio tem 6 duplas (got ${a.courts['Estádio']?.duplas.length})`);
+    assert(a.courts['Quadra 4']?.raw === '4', `Abril raw label da Quadra 4 = "4" (got "${a.courts['Quadra 4']?.raw}")`);
+    assert(a.courts['Estádio']?.raw === 'EST.', `Abril raw label do Estádio = "EST." (got "${a.courts['Estádio']?.raw}")`);
+    // Abril usa rótulos explícitos de dupla (6A, 7B, …)
+    assert(a.courts['Quadra 4']?.duplas[0] === '6A', `Abril Quadra 4 primeira dupla = 6A (got "${a.courts['Quadra 4']?.duplas[0]}")`);
   } else {
     console.log(`(pulando Abril — arquivo não existe em ${ABRIL})`);
   }
@@ -82,15 +84,30 @@ async function parseToCanonical(pdfPath) {
     group(`Maio/2026 (${MAIO})`);
     const m = await parseToCanonical(MAIO);
     assert(m.date === '2026-05-17', `data = 2026-05-17 (got ${m.date})`);
-    assert(m.courts['6']?.canonical === 'Estádio', `prefix 6 → Estádio (got raw="${m.courts['6']?.raw}", canon="${m.courts['6']?.canonical}")`);
-    assert(m.courts['7']?.canonical === 'Quadra 4', `prefix 7 → Quadra 4 (got raw="${m.courts['7']?.raw}", canon="${m.courts['7']?.canonical}")`);
-    assert(m.courts['8']?.canonical === 'Quadra 5', `prefix 8 → Quadra 5 (got raw="${m.courts['8']?.raw}", canon="${m.courts['8']?.canonical}")`);
-    assert(m.courts['6']?.duplas.length === 6, `Maio prefix 6 tem 6 duplas (got ${m.courts['6']?.duplas.length})`);
-    assert(m.courts['7']?.duplas.length === 7, `Maio prefix 7 tem 7 duplas — inclui 7G (got ${m.courts['7']?.duplas.length}: ${m.courts['7']?.duplas.join(',')})`);
-    assert(m.courts['8']?.duplas.length === 6, `Maio prefix 8 tem 6 duplas (got ${m.courts['8']?.duplas.length})`);
-    assert(m.courts['7']?.duplas.includes('7G'), `Maio prefix 7 contém a dupla 7G`);
+    assert(m.courts['Estádio']?.duplas.length === 6, `Maio Estádio tem 6 duplas (got ${m.courts['Estádio']?.duplas.length})`);
+    assert(m.courts['Quadra 4']?.duplas.length === 7, `Maio Quadra 4 tem 7 duplas — inclui 7G (got ${m.courts['Quadra 4']?.duplas.length}: ${m.courts['Quadra 4']?.duplas.join(',')})`);
+    assert(m.courts['Quadra 5']?.duplas.length === 6, `Maio Quadra 5 tem 6 duplas (got ${m.courts['Quadra 5']?.duplas.length})`);
+    assert(m.courts['Quadra 4']?.duplas.includes('7G'), `Maio Quadra 4 contém a dupla 7G`);
+    assert(m.courts['Estádio']?.raw === 'Est.', `Maio raw label do Estádio = "Est." (got "${m.courts['Estádio']?.raw}")`);
+    assert(m.courts['Quadra 4']?.raw === 'Q4', `Maio raw label da Quadra 4 = "Q4" (got "${m.courts['Quadra 4']?.raw}")`);
   } else {
     console.log(`(pulando Maio — arquivo não existe em ${MAIO})`);
+  }
+
+  if (fs.existsSync(JUNHO)) {
+    group(`Junho/2026 (${JUNHO})`);
+    const j = await parseToCanonical(JUNHO);
+    assert(j.date === '2026-06-21', `data = 2026-06-21 (got ${j.date})`);
+    // Junho não tem coluna "Dupla" — esperamos labels sintéticos #1, #2, …
+    assert(j.courts['Quadra 5']?.duplas.length === 6, `Junho Quadra 5 tem 6 duplas (got ${j.courts['Quadra 5']?.duplas.length})`);
+    assert(j.courts['Quadra 4']?.duplas.length === 6, `Junho Quadra 4 tem 6 duplas (got ${j.courts['Quadra 4']?.duplas.length})`);
+    assert(j.courts['Estádio']?.duplas.length === 6, `Junho Estádio tem 6 duplas (got ${j.courts['Estádio']?.duplas.length})`);
+    assert(j.courts['Quadra 5']?.raw === '5', `Junho raw label da Quadra 5 = "5" (got "${j.courts['Quadra 5']?.raw}")`);
+    assert(j.courts['Estádio']?.raw === 'EST', `Junho raw label do Estádio = "EST" (got "${j.courts['Estádio']?.raw}")`);
+    assert(j.courts['Quadra 5']?.duplas.includes('#1'), `Junho Quadra 5 tem dupla sintética #1 (got ${j.courts['Quadra 5']?.duplas.join(',')})`);
+    assert(j.sorteados?.length === 1 && j.sorteados[0].name === 'Tuninho', `Junho tem 1 sorteio (Tuninho) (got ${JSON.stringify(j.sorteados)})`);
+  } else {
+    console.log(`(pulando Junho — arquivo não existe em ${JUNHO})`);
   }
 
   if (process.exitCode) {

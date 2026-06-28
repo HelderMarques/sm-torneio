@@ -119,26 +119,54 @@ function parsePdf(items) {
   }
   if (JOGO_X.length === 0) throw new Error('Não consegui detectar os cabeçalhos "Nº Jogo" no PDF.');
 
-  // 4) Parse pair rows: rows with a label like "6A", "7B", "8C", "7G" (any uppercase letter)
+  // Posição dinâmica da coluna PONTOS (usada para detectar pontos de sorteio).
+  // Abril/Maio: x≈680. Junho/2026: x≈613 (layout mais compacto).
+  const pontosHeader = items.find(i => /^PONTOS$/.test(i.str.trim()));
+  const PONTOS_X = pontosHeader ? pontosHeader.x : 680;
+
+  // 4) Parse pair rows.
+  //
+  // Há dois formatos de PDF no histórico:
+  //   • Abril/Maio: cada linha de dupla tem rótulo de quadra (ex: "Q4") + rótulo
+  //     de dupla (ex: "6A") + scores + posição final.
+  //   • Junho:      a coluna "Dupla" foi removida — só há rótulo de quadra
+  //     (ex: "5", "EST") + scores + posição final.
+  //
+  // Para suportar ambos, ancoramos a linha em:
+  //   1) Pelo menos um marcador "x" (separa scores de cada jogo).
+  //   2) Rótulo de quadra à esquerda do primeiro "x" matching COURT_LABEL_RE.
+  //   3) Rótulo de posição final em qualquer lugar da linha (CAMPEÃO, 3 LUGAR, …).
+  // O rótulo de dupla é opcional; se ausente, sintetizamos depois.
+  const COURT_LABEL_RE = /^(Q\s*\d+|Quadra\s*\d+|Est\.?|EST\.?|Estádio|\d+)$/i;
+  const DUPLA_LABEL_RE = /^(\d[A-Z])$/;
+  const POSITION_RE = /^(CAMPEÃO|VICE-CAMPEÃO|\d+\s*º?\s*LUGAR)$/i;
+
   const pairRows = [];
   for (const yKey of Object.keys(byY).map(Number).sort((a, b) => b - a)) {
     const row = byY[yKey].sort((a, b) => a.x - b.x);
-    const labelItem = row.find(i => /^(\d[A-Z])$/.test(i.str.trim()));
-    if (!labelItem) continue;
-
-    // Court label: leftmost text item before the pair label (e.g. "Q4", "Est.", "4").
-    // We read this directly from the PDF because the convention varies across months
-    // (Abril used "4"/"5"/"EST.", Maio used "Q4"/"Q5"/"Est.").
-    const courtLabelItem = row
-      .filter(i => i.x < labelItem.x && i.str.trim())
-      .sort((a, b) => a.x - b.x)[0];
-    const rawCourtLabel = courtLabelItem?.str.trim() || null;
 
     const literalXs = row.filter(i => i.str.trim().toLowerCase() === 'x');
+    if (literalXs.length === 0) continue;
+    const firstX = literalXs[0];
+
+    const courtLabelItem = row
+      .filter(i => i.x < firstX.x && COURT_LABEL_RE.test(i.str.trim()))
+      .sort((a, b) => a.x - b.x)[0];
+    if (!courtLabelItem) continue;
+
+    const posItem = row.find(i => POSITION_RE.test(i.str.trim()));
+    const duplaItem = row.find(i =>
+      i.x > courtLabelItem.x && i.x < firstX.x && DUPLA_LABEL_RE.test(i.str.trim())
+    );
+    // Precisamos de pelo menos um indicador adicional (posição ou rótulo de dupla)
+    // para evitar capturar linhas espúrias.
+    if (!posItem && !duplaItem) continue;
+
+    const rawCourtLabel = courtLabelItem.str.trim();
+    const position = posItem?.str.trim();
+
     const digits = row.filter(i => /^\d+$/.test(i.str.trim()));
     const results = row.filter(i => /^[VD]$/.test(i.str.trim()));
-    const posItem = row.find(i => i.x >= 700);
-    const position = posItem?.str.trim();
 
     const games = [];
     for (const xItem of literalXs) {
@@ -169,13 +197,30 @@ function parsePdf(items) {
 
     pairRows.push({
       y: yKey,
-      label: labelItem.str.trim(),
+      label: duplaItem?.str.trim() || null,
       rawCourtLabel,
       games,
       position,
       playerA,
       playerB,
     });
+  }
+
+  // 4b) Sintetiza rótulos para linhas sem coluna "Dupla" (formato Junho/2026+).
+  // Agrupa por rawCourtLabel e atribui "#1", "#2"… na ordem em que aparecem
+  // no PDF (top-to-bottom = y decrescente).
+  const needLabels = pairRows.filter(p => !p.label);
+  if (needLabels.length) {
+    const byCourt = {};
+    for (const pr of needLabels) {
+      const key = pr.rawCourtLabel;
+      if (!byCourt[key]) byCourt[key] = [];
+      byCourt[key].push(pr);
+    }
+    for (const list of Object.values(byCourt)) {
+      list.sort((a, b) => b.y - a.y);
+      list.forEach((pr, i) => { pr.label = `#${i + 1}`; });
+    }
   }
 
   // 5) Sorteios: rows containing "S O R T E I O" letters
@@ -193,8 +238,8 @@ function parsePdf(items) {
     if (!nameItem) continue;
     // Group: look for "Feminino" or "Masculino" in this row
     const groupLabel = row.find(i => /^(Feminino|Masculino)$/i.test(i.str.trim()))?.str.trim();
-    // Points: numeric value at x ≈ 680
-    const ptsItem = row.find(i => i.x >= 670 && i.x <= 690 && /^\d+$/.test(i.str.trim()));
+    // Points: numeric value próximo da coluna PONTOS (posição detectada dinamicamente).
+    const ptsItem = row.find(i => Math.abs(i.x - PONTOS_X) <= 30 && /^\d+$/.test(i.str.trim()));
     const points = ptsItem ? parseInt(ptsItem.str, 10) : null;
     sorteados.push({
       name: nameItem.str.trim(),
@@ -341,31 +386,24 @@ if (require.main !== module) return;
     s.group = s.group || p?.group;
   }
 
-  // ---- 4. Build courts (pairs grouped by their pair-label-prefix) ----
-  // Court detection: pairs sharing the same numeric label prefix (6, 7, 8) form a court.
-  // The actual court display label ("Quadra 4", "Estádio", …) is read from the PDF —
-  // the convention varies per month (Abril: "4"/"5"/"EST.", Maio: "Q4"/"Q5"/"Est.").
+  // ---- 4. Build courts (pairs grouped by canonical court label) ----
+  // Agrupamos pelo rótulo de quadra canônico ("Quadra 4", "Estádio", …) lido do PDF.
+  // A convenção do rótulo bruto varia por mês (Abril: "4"/"5"/"EST.", Maio: "Q4"/"Q5"/"Est.",
+  // Junho: "5"/"4"/"EST" sem coluna de dupla), por isso a canonicalização é o que mantém
+  // a agregação consistente entre formatos.
   console.log('\n[4/7] Agrupando duplas em quadras…');
   const courtsByGroup = { F: [], M: [] };
-  const byPrefix = {};
+  const byCourt = {};
   for (const pr of pairRows) {
-    const prefix = pr.label[0];
-    if (!byPrefix[prefix]) byPrefix[prefix] = [];
-    byPrefix[prefix].push(pr);
+    const courtKey = canonicalCourtLabel(pr.rawCourtLabel) || `Quadra ?`;
+    if (!byCourt[courtKey]) byCourt[courtKey] = [];
+    byCourt[courtKey].push(pr);
   }
 
-  for (const [prefix, prs] of Object.entries(byPrefix)) {
+  for (const [courtLabel, prs] of Object.entries(byCourt)) {
     if (prs.length === 0) continue;
     const group = prs[0].group;
     if (!group) continue;
-    const rawLabels = [...new Set(prs.map(pr => pr.rawCourtLabel).filter(Boolean))];
-    if (rawLabels.length > 1) {
-      warnings.push(`Prefixo ${prefix}: rótulos de quadra divergentes no PDF: ${rawLabels.join(', ')}. Usando "${rawLabels[0]}".`);
-    }
-    const courtLabel = canonicalCourtLabel(rawLabels[0]) || `Quadra ${prefix}`;
-    if (!rawLabels.length) {
-      warnings.push(`Prefixo ${prefix}: PDF não tinha rótulo de quadra; usando fallback "${courtLabel}".`);
-    }
     const pairs = prs.map(pr => ({ playerA: pr.resolvedA?.name || pr.playerA, playerB: pr.resolvedB?.name || pr.playerB, _pr: pr }));
     const labels = prs.map(pr => pr.label);
     const games = [];
