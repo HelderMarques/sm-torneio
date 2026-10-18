@@ -135,3 +135,26 @@ test('buildCondicoes: líder viva não manda alcançar a si mesma', () => {
   assert.ok(!txt.toLowerCase().includes('alcançar'), 'líder não deve ser mandada alcançar alguém');
   assert.ok(txt.toLowerCase().includes('lidera'), 'deve reconhecer que ela lidera');
 });
+
+const { describeBlockers } = require('../src/services/chancesTituloService');
+
+test('describeBlockers: distingue faltar, não vencer e ignora quem não ameaça', () => {
+  const cfg = { pointsTable: [100, 80, 70, 60, 50, 40, 30], totalRounds: 9, discardStartsAfter: 5, bonusValue: 20 };
+  // Contender no melhor caso chega a 620.
+  const a = { name: 'Natalia', ceil: 620 };
+
+  // Giovana: presença total (ganha bônus). Soma 610, menor positivo 50.
+  //   Último lugar (30): 610+30-30+20 = 630 > 620 → precisa FALTAR.
+  const giovana = { name: 'Giovana', scores: [100, 100, 80, 80, 80, 60, 60, 50], presentAllCompleted: true, penalty: 0 };
+  // Katia: faltou uma etapa (sem bônus). Soma 570, menor positivo 40.
+  //   Vence (100): 570+100-40 = 630 > 620; 2º (80): 570+80-40 = 610 ≤ 620 → NÃO PODE VENCER.
+  const katia = { name: 'Katia', scores: [100, 100, 100, 100, 90, 40, 40], presentAllCompleted: false, penalty: 0 };
+  // Ana: presença total. Soma 520, menor 50. Mesmo vencendo: 520+100-50+20 = 590 ≤ 620 → NÃO é ameaça.
+  const ana = { name: 'Ana', scores: [100, 80, 80, 60, 60, 50, 60, 30], presentAllCompleted: true, penalty: 0 };
+
+  const r = describeBlockers(a, [giovana, katia, ana], cfg);
+  const txt = r.join(' | ');
+  assert.ok(/Giovana precisa faltar/i.test(txt), `esperava Giovana faltar; got: ${txt}`);
+  assert.ok(/Katia não pode vencer/i.test(txt), `esperava Katia não vencer; got: ${txt}`);
+  assert.ok(!/Ana/.test(txt), `Ana não deveria aparecer; got: ${txt}`);
+});

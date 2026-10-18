@@ -141,6 +141,49 @@ function buildCondicoes(a, ctx) {
   return ['Sem chance matemática de título nesta temporada.'];
 }
 
+/**
+ * Com 1 etapa restante, descreve "o que NÃO pode acontecer" para um contender A
+ * (que no melhor caso chega a `a.ceil`) ainda poder ser campeã: para cada atleta
+ * que consegue terminar à frente de A mesmo A vencendo, a melhor colocação que ele
+ * pode ter sem ultrapassar A (ou "precisa faltar" quando até o último lugar o mantém
+ * à frente, por conta do bônus de presença/descarte). Tudo via projectFinalPoints.
+ * @param {{name:string, ceil:number}} a contender (melhor caso = ceil)
+ * @param {{name:string, scores:number[], presentAllCompleted:boolean, penalty:number}[]} others
+ * @param {object} cfg { pointsTable, totalRounds, discardStartsAfter, bonusValue }
+ * @returns {string[]} frases de impedimento (vazio se ninguém bloqueia)
+ */
+function describeBlockers(a, others, cfg) {
+  const aBest = a.ceil;
+  const finalWith = (o, points, present) =>
+    projectFinalPoints(o.scores.concat([points]), {
+      totalRounds: cfg.totalRounds,
+      completedCount: cfg.totalRounds,
+      discardStartsAfter: cfg.discardStartsAfter,
+      bonusValue: cfg.bonusValue,
+      presentAllRounds: present && o.presentAllCompleted,
+      penalty: o.penalty,
+    });
+
+  const parts = [];
+  for (const o of others) {
+    // Se nem vencendo a etapa o ultrapassa A, não é bloqueador.
+    if (finalWith(o, cfg.pointsTable[0], true) <= aBest) continue;
+    // Melhor colocação (mais pontos) em que o fica <= A.
+    let okIdx = -1;
+    for (let i = 0; i < cfg.pointsTable.length; i++) {
+      if (finalWith(o, cfg.pointsTable[i], true) <= aBest) { okIdx = i; break; }
+    }
+    if (okIdx === -1) {
+      parts.push(`a ${o.name} precisa faltar a última etapa (mesmo em último lugar ela se mantém à sua frente)`);
+    } else if (okIdx === 1) {
+      parts.push(`a ${o.name} não pode vencer a última etapa`);
+    } else {
+      parts.push(`a ${o.name} precisa terminar em ${okIdx + 1}º ou pior na última etapa`);
+    }
+  }
+  return parts;
+}
+
 /** Reúne dados do banco, projeta piso/teto, deriva status, estima probabilidade. */
 async function computeChances(group, tournamentId) {
   const [tournament, settings, standings] = await Promise.all([
@@ -224,6 +267,22 @@ async function computeChances(group, tournamentId) {
         leaderPoints: leader ? leader.pointsValid : null,
         leaderId: leader ? leader.participantId : null,
       });
+
+      // "O que não pode acontecer" — só com 1 etapa restante, para quem persegue
+      // o título (não a líder). Determinístico pelo regulamento.
+      const isLeader = leader && item.participantId === leader.participantId;
+      if (remaining === 1 && !isLeader && (item.titulo === 'vivo' || item.titulo === 'depende_desempate')) {
+        const blockers = describeBlockers(
+          { name: a.name, ceil: a.ceil },
+          withBounds
+            .filter((o) => o.id !== a.id)
+            .map((o) => ({ name: o.name, scores: o.scores, presentAllCompleted: o.presentAllCompleted, penalty: o.penalty })),
+          { pointsTable, totalRounds, discardStartsAfter, bonusValue }
+        );
+        if (blockers.length) {
+          item.condicoes = item.condicoes.concat([`Além disso, para você ser campeã, ${blockers.join(' e ')}.`]);
+        }
+      }
       return item;
     })
     .sort((x, y) => (x.currentPosition ?? 999) - (y.currentPosition ?? 999));
@@ -239,4 +298,4 @@ async function computeChances(group, tournamentId) {
   return { group, totalRounds, remaining, trophyPositions, athletes };
 }
 
-module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes, computeChances };
+module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes, describeBlockers, computeChances };
