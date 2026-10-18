@@ -84,4 +84,34 @@ async function generateInsight({ viewer, simulatedStandings }) {
   }
 }
 
-module.exports = { generateInsight };
+const CHANCES_SYSTEM = `Você é um assistente do Torneio Secos & Molhados. Recebe FATOS já calculados sobre as chances de uma atleta (título e troféu) e deve reescrevê-los em 1-2 frases curtas, português brasileiro, segunda pessoa ("você"), tom encorajador e natural. SEM emojis, SEM markdown.
+
+REGRAS ABSOLUTAS:
+- NÃO altere, invente ou recalcule nenhum número, nome ou colocação. Use exatamente os valores recebidos.
+- NÃO adicione fatos novos. Apenas reescreva com clareza o que recebeu.
+- Se os fatos disserem "garantido" ou "sem chance", mantenha esse significado.`;
+
+async function generateChancesText({ name, facts }) {
+  const c = getClient();
+  if (!c) return null;
+  try {
+    const userPrompt = `Atleta: ${name}\nFatos (não altere números):\n- ${facts.join('\n- ')}`;
+    const sdkCall = c.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: [{ type: 'text', text: CHANCES_SYSTEM, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`chances timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+    );
+    const resp = await Promise.race([sdkCall, timeoutPromise]);
+    const text = resp.content?.[0]?.type === 'text' ? resp.content[0].text.trim() : null;
+    return text || null;
+  } catch (err) {
+    console.error('[insightService] Erro em generateChancesText:', err.message);
+    return null;
+  }
+}
+
+module.exports = { generateInsight, generateChancesText };

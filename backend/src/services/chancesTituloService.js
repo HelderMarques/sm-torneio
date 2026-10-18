@@ -233,6 +233,14 @@ async function computeChances(group, tournamentId) {
     })
     .sort((x, y) => (x.currentPosition ?? 999) - (y.currentPosition ?? 999));
 
+  const { generateChancesText } = require('./insightService');
+  await Promise.all(
+    athletes.map(async (a) => {
+      const ai = await generateChancesText({ name: a.name, facts: a.condicoes });
+      a.resumo = ai || a.condicoes.join(' '); // fallback = template puro
+    })
+  );
+
   return { group, totalRounds, remaining, trophyPositions, athletes };
 }
 
