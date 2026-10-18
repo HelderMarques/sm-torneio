@@ -285,6 +285,27 @@ test('APR-2', 'GET /aproveitamento rejeita group inválido', async () => {
   assert(r.status === 400, `esperado 400, recebido ${r.status}`);
 });
 
+test('CHA-1', 'GET /chances retorna estrutura { athletes[] } com status e probabilidades', async () => {
+  const r = await get(`/api/tournaments/${TEST_SLUG}/chances?group=F`);
+  assert(r.status === 200, `HTTP ${r.status}`);
+  assert(Array.isArray(r.body.athletes), 'athletes não é array');
+  assert(typeof r.body.trophyPositions === 'number', 'trophyPositions ausente');
+  if (r.body.athletes.length > 0) {
+    const a = r.body.athletes[0];
+    assert(a.participantId && a.name, 'athlete sem participantId/name');
+    assert(['garantido', 'vivo', 'depende_desempate', 'fora'].includes(a.titulo), `titulo inválido: ${a.titulo}`);
+    assert(['garantido', 'vivo', 'depende_desempate', 'fora'].includes(a.trofeu), `trofeu inválido: ${a.trofeu}`);
+    assert(a.probTitulo >= 0 && a.probTitulo <= 1, `probTitulo fora de [0,1]: ${a.probTitulo}`);
+    assert(a.probTrofeu >= a.probTitulo - 1e-9, 'probTrofeu < probTitulo');
+    assert(Array.isArray(a.condicoes), 'condicoes não é array');
+  }
+});
+
+test('CHA-2', 'GET /chances rejeita group inválido', async () => {
+  const r = await get(`/api/tournaments/${TEST_SLUG}/chances?group=X`);
+  assert(r.status === 400, `esperado 400, recebido ${r.status}`);
+});
+
 // ── Run ───────────────────────────────────────────────────────────────────────
 runAll().catch((err) => {
   console.error('Erro fatal no runner:', err);

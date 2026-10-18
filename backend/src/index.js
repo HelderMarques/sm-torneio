@@ -32,6 +32,7 @@ app.use('/api/tournaments/:tournamentSlug/rounds', tournamentMiddleware, roundRo
 app.use('/api/tournaments/:tournamentSlug/standings', tournamentMiddleware, standingsRoutes);
 app.use('/api/tournaments/:tournamentSlug/simulacao', tournamentMiddleware, require('./routes/simulacao'));
 app.use('/api/tournaments/:tournamentSlug/aproveitamento', tournamentMiddleware, require('./routes/aproveitamento'));
+app.use('/api/tournaments/:tournamentSlug/chances', tournamentMiddleware, require('./routes/chances'));
 
 // Global settings (not tournament-scoped)
 app.use('/api/settings', settingsRoutes);
