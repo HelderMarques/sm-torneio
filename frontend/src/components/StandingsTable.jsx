@@ -11,6 +11,23 @@ function positionBadge(pos) {
   return 'bg-neutral-50 text-neutral-500';
 }
 
+const POSITION_FIELDS = [
+  ['firstPlaces', '1º'],
+  ['secondPlaces', '2º'],
+  ['thirdPlaces', '3º'],
+  ['fourthPlaces', '4º'],
+  ['fifthPlaces', '5º'],
+  ['sixthPlaces', '6º'],
+  ['seventhPlaces', '7º'],
+];
+
+/** Lista inline das colocações com contagem > 0, ex: [['1º', 2], ['2º', 3]]. */
+function colocacoes(s) {
+  return POSITION_FIELDS
+    .map(([key, label]) => [label, s[key] || 0])
+    .filter(([, n]) => n > 0);
+}
+
 export default function StandingsTable({ standings, showDetails = true }) {
   const { slug } = useTournament();
 
@@ -37,13 +54,7 @@ export default function StandingsTable({ standings, showDetails = true }) {
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Part.</th>
             {showDetails && (
               <>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">1º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">2º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">3º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">4º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">5º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">6º</th>
-                <th className="px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">7º</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Colocações</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">SV</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">SP</th>
                 <th className="px-3 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">SS</th>
@@ -85,13 +96,25 @@ export default function StandingsTable({ standings, showDetails = true }) {
               <td className="px-4 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.roundsPlayed}</td>
               {showDetails && (
                 <>
-                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.firstPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.secondPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.thirdPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.fourthPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.fifthPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.sixthPlaces || '-'}</td>
-                  <td className="px-2 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.seventhPlaces || '-'}</td>
+                  <td className="px-4 py-3 border-b border-neutral-100">
+                    {(() => {
+                      const cols = colocacoes(s);
+                      if (cols.length === 0) return <span className="text-neutral-300">—</span>;
+                      return (
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 min-w-[130px] text-xs">
+                          {cols.map(([label, n], i) => (
+                            <span key={label} className="flex items-center gap-x-1.5 whitespace-nowrap">
+                              {i > 0 && <span className="text-neutral-200">|</span>}
+                              <span>
+                                <span className="text-neutral-400">{label}:</span>{' '}
+                                <strong className="text-neutral-700">{n}</strong>
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td className="px-3 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.setsWon}</td>
                   <td className="px-3 py-3 text-center text-neutral-600 border-b border-neutral-100">{s.setsLost}</td>
                   <td className="px-3 py-3 text-center font-medium text-neutral-700 border-b border-neutral-100">{s.saldoSets}</td>
@@ -111,7 +134,7 @@ export default function StandingsTable({ standings, showDetails = true }) {
           <span><strong className="text-neutral-500">Perd.</strong> Penalidade de uniforme</span>
           <span><strong className="text-neutral-500">Desc.</strong> Descarte</span>
           <span><strong className="text-neutral-500">Part.</strong> Partidas realizadas</span>
-          <span><strong className="text-neutral-500">1º–7º</strong> Colocações por etapa</span>
+          <span><strong className="text-neutral-500">Colocações</strong> Nº de vezes em cada posição</span>
           <span><strong className="text-neutral-500">SV</strong> Sets Vencidos</span>
           <span><strong className="text-neutral-500">SP</strong> Sets Perdidos</span>
           <span><strong className="text-neutral-500">SS</strong> Saldo de Sets</span>
