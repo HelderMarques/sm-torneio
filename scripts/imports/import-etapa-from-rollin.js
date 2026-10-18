@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 /**
  * Importa uma etapa a partir dos dados públicos do tenis.rollin.com.br
- * (Firestore do projeto secosmolhados-25ee0).
+ * (Supabase/PostgREST em supasm.rollin.com.br — migraram do Firestore em 10/2026).
  *
  * Uso:
  *   node scripts/imports/import-etapa-from-rollin.js [--month=YYYY-MM] [--mode=apply|dry-run]
+ *                                                     [--extra-sorteio=Nome:Grupo:Pontos ...]
  *
  * Sem --month: usa a etapa mais recente encontrada em apuracoes.
+ *
+ * --extra-sorteio pode ser repetido. Útil quando o organizador ainda não registrou
+ * um sorteio em pontos_sorteio. Grupo: F|M. Pontos: 80 (sorteio padrão) ou 60
+ * (sorteio_a_pedido). Ex.: --extra-sorteio="Sandra:F:80".
  *
  * Variáveis de ambiente (carregadas de scripts/.env.import se presente):
  *   API_BASE_URL     (default https://www.sm-ttc.com.br/api)
@@ -14,10 +19,10 @@
  *   ADMIN_EMAIL      (obrigatório em apply)
  *   ADMIN_PASSWORD   (obrigatório em apply)
  *
- * Fonte dos dados (Firestore, coleções públicas):
- *   apuracoes/{sessionTimestamp}_{F|M}  — jogos da etapa (resultados[])
- *   drawHistory/*                       — duplas formadas por sessão
- *   pontosSorteio/{ano}_{F|M}           — sorteios do ano por gênero
+ * Fonte dos dados (Supabase REST público):
+ *   apuracoes      — id="{sessionTimestamp}_{F|M}", dados={date, gender, updatedAt, resultados[]}
+ *   draw_history   — colunas player1, player2, gender, date, session_timestamp, timestamp
+ *   pontos_sorteio — id="{ano}_{F|M}", dados={year, gender, entries[]}
  *
  * Convenção de rótulo de quadra (para a API do SM Torneio):
  *   Feminino:  chave 1 → "Estádio"
@@ -35,68 +40,64 @@ if (fs.existsSync(ENV_FILE)) {
   }
 }
 
-const args = Object.fromEntries(process.argv.slice(2).map(a => {
+// Argumentos: nomes podem repetir (--extra-sorteio=…), por isso coletamos em array.
+const argList = process.argv.slice(2).map(a => {
   const [k, ...rest] = a.replace(/^--/, '').split('=');
   return [k, rest.join('=') || true];
-}));
+});
+const args = Object.fromEntries(argList);
 const MODE = (args.mode || 'apply').toLowerCase();
 const TARGET_MONTH = args.month || null;
+// --extra-sorteio="Nome:Grupo:Pontos" — pode repetir
+const EXTRA_SORTEIOS = argList
+  .filter(([k]) => k === 'extra-sorteio')
+  .map(([, v]) => {
+    const [name, group, points] = String(v).split(':');
+    if (!name || (group !== 'F' && group !== 'M') || !/^\d+$/.test(points || '')) {
+      console.error(`❌ --extra-sorteio inválido: "${v}". Esperado "Nome:Grupo(F|M):Pontos(60|80)".`);
+      process.exit(2);
+    }
+    const pts = parseInt(points, 10);
+    return { name, group, points: pts, type: pts === 60 ? 'sorteio_a_pedido' : 'sorteio' };
+  });
 const API_BASE_URL = process.env.API_BASE_URL || 'https://www.sm-ttc.com.br/api';
 const TOURNAMENT_SLUG = process.env.TOURNAMENT_SLUG || '2026';
 
-const FIREBASE_PROJECT = 'secosmolhados-25ee0';
-// API key pública embutida no bundle da SPA; leitura dessas coleções é permitida sem auth.
-const FIREBASE_API_KEY = 'AIzaSyDOuUHVWrNogEFlv_BTOXup1GajHkaN7FE';
-const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents`;
+// Anon key JWT pública do Supabase do rollin — embutida no bundle da SPA (role=anon).
+// Leitura dessas tabelas é liberada sem auth.
+const SUPABASE_BASE = 'https://supasm.rollin.com.br/rest/v1';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3ODY1ODYzODgsImV4cCI6MTg5MzQ1NjAwMCwicm9sZSI6ImFub24iLCJpc3MiOiJzdXBhYmFzZSJ9.Kc5jNggOW2yPl7X4l5i5bGVkpHHpo5TQd6wEF7VH24s';
 
 // ============================================================================
-// FIRESTORE REST helpers
+// SUPABASE / PostgREST helpers
 // ============================================================================
 
-function unwrap(field) {
-  if (!field) return undefined;
-  if ('stringValue' in field) return field.stringValue;
-  if ('integerValue' in field) return parseInt(field.integerValue, 10);
-  if ('doubleValue' in field) return field.doubleValue;
-  if ('booleanValue' in field) return field.booleanValue;
-  if ('nullValue' in field) return null;
-  if ('timestampValue' in field) return field.timestampValue;
-  if ('arrayValue' in field) return (field.arrayValue.values || []).map(unwrap);
-  if ('mapValue' in field) return unwrapFields(field.mapValue.fields);
-  return undefined;
-}
-function unwrapFields(fields) {
-  const out = {};
-  for (const [k, v] of Object.entries(fields || {})) out[k] = unwrap(v);
-  return out;
-}
-function unwrapDoc(doc) {
-  return { _name: doc.name.split('/').pop(), ...unwrapFields(doc.fields || {}) };
-}
-
-async function firestoreGet(docPath) {
-  const url = `${FIRESTORE_BASE}/${docPath}?key=${FIREBASE_API_KEY}`;
-  const res = await fetch(url);
+async function supabaseFetch(pathAndQuery) {
+  const url = `${SUPABASE_BASE}/${pathAndQuery}`;
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+  });
   const text = await res.text();
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`GET ${docPath} → ${res.status}: ${text.slice(0, 300)}`);
-  return JSON.parse(text);
+  if (!res.ok) throw new Error(`GET ${pathAndQuery} → ${res.status}: ${text.slice(0, 300)}`);
+  return text ? JSON.parse(text) : [];
 }
 
-async function firestoreList(collection, { pageSize = 300 } = {}) {
+async function supabaseList(table, { select = '*', pageSize = 1000, extra = '' } = {}) {
   const all = [];
-  let pageToken = null;
-  do {
-    const q = new URLSearchParams({ key: FIREBASE_API_KEY, pageSize: String(pageSize) });
-    if (pageToken) q.set('pageToken', pageToken);
-    const res = await fetch(`${FIRESTORE_BASE}/${collection}?${q}`);
-    const text = await res.text();
-    if (!res.ok) throw new Error(`LIST ${collection} → ${res.status}: ${text.slice(0, 300)}`);
-    const json = JSON.parse(text);
-    for (const d of json.documents || []) all.push(unwrapDoc(d));
-    pageToken = json.nextPageToken;
-  } while (pageToken);
+  let offset = 0;
+  while (true) {
+    const q = `${table}?select=${select}&order=id.asc&offset=${offset}&limit=${pageSize}${extra ? '&' + extra : ''}`;
+    const rows = await supabaseFetch(q);
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
   return all;
+}
+
+async function supabaseGetById(table, id, { select = '*' } = {}) {
+  const rows = await supabaseFetch(`${table}?select=${select}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  return rows[0] || null;
 }
 
 // ============================================================================
@@ -153,7 +154,7 @@ function computeDoubleLossPositions(n, games) {
 
 const ORDINAL = { 1: 'CAMPEÃO', 2: 'VICE-CAMPEÃO', 3: '3º LUGAR', 4: '4º LUGAR', 5: '5º LUGAR', 6: '6º LUGAR', 7: '7º LUGAR', 8: '8º LUGAR' };
 
-module.exports = { unwrapDoc, unwrapFields, courtLabelFor, computeDoubleLossPositions };
+module.exports = { courtLabelFor, computeDoubleLossPositions, supabaseFetch, supabaseList, supabaseGetById };
 if (require.main !== module) return;
 
 // ============================================================================
@@ -165,14 +166,24 @@ if (require.main !== module) return;
   const errors = [];
 
   console.log(`Modo: ${MODE}`);
-  console.log(`Fonte: Firestore ${FIREBASE_PROJECT}`);
+  console.log(`Fonte: Supabase ${SUPABASE_BASE}`);
   console.log(`API SM Torneio: ${API_BASE_URL}`);
   console.log(`Torneio: ${TOURNAMENT_SLUG}`);
   if (TARGET_MONTH) console.log(`Mês solicitado: ${TARGET_MONTH}`);
 
   // ---- 1. Descobrir etapas disponíveis ----
   console.log('\n[1/7] Listando etapas em apuracoes…');
-  const apuracoes = await firestoreList('apuracoes');
+  // id tem formato "{sessionTimestamp}_{gender}"; dados = { date, gender, resultados[], ... }
+  const apuracoesRaw = await supabaseList('apuracoes', { select: 'id,dados' });
+  const apuracoes = apuracoesRaw.map(row => {
+    const [sessionTimestamp, gender] = row.id.split(/_([FM])$/).filter(Boolean);
+    return {
+      sessionTimestamp,
+      gender,
+      resultados: row.dados?.resultados || [],
+      dadosDate: row.dados?.date || null,
+    };
+  });
   const byMonth = {};
   for (const a of apuracoes) {
     if (!a.sessionTimestamp || !a.gender) continue;
@@ -206,13 +217,13 @@ if (require.main !== module) return;
   const dateBR = `${dd}/${mm}/${yy}`;
   console.log(`  Data da etapa: ${dateISO}`);
 
-  // ---- 2. Buscar duplas em drawHistory ----
-  console.log('\n[2/7] Buscando duplas em drawHistory…');
-  const drawHistoryAll = await firestoreList('drawHistory');
+  // ---- 2. Buscar duplas em draw_history ----
+  console.log('\n[2/7] Buscando duplas em draw_history…');
+  const drawHistoryAll = await supabaseList('draw_history', { select: 'player1,player2,gender,session_timestamp' });
   const duplasBySession = {};
   for (const dh of drawHistoryAll) {
-    if (!dh.sessionTimestamp || !dh.player1 || !dh.player2) continue;
-    const k = `${dh.sessionTimestamp}_${dh.gender}`;
+    if (!dh.session_timestamp || !dh.player1 || !dh.player2) continue;
+    const k = `${dh.session_timestamp}_${dh.gender}`;
     if (!duplasBySession[k]) duplasBySession[k] = [];
     duplasBySession[k].push({ player1: dh.player1, player2: dh.player2 });
   }
@@ -220,13 +231,12 @@ if (require.main !== module) return;
   const duplasM = sessionM ? (duplasBySession[`${sessionM.sessionTimestamp}_M`] || []) : [];
   console.log(`  F: ${duplasF.length} duplas | M: ${duplasM.length} duplas`);
 
-  // ---- 3. Buscar sorteios em pontosSorteio ----
-  console.log('\n[3/7] Buscando sorteios em pontosSorteio…');
+  // ---- 3. Buscar sorteios em pontos_sorteio ----
+  console.log('\n[3/7] Buscando sorteios em pontos_sorteio…');
   async function loadSorteios(gender) {
-    const doc = await firestoreGet(`pontosSorteio/${yy}_${gender}`);
-    if (!doc || !doc.fields) return [];
-    const parsed = unwrapFields(doc.fields);
-    return (parsed.entries || [])
+    const row = await supabaseGetById('pontos_sorteio', `${yy}_${gender}`, { select: 'dados' });
+    if (!row || !row.dados) return [];
+    return (row.dados.entries || [])
       .filter(e => e.date === dateBR)
       .map(e => ({
         name: e.player,
@@ -235,10 +245,18 @@ if (require.main !== module) return;
         type: e.pontos === 60 ? 'sorteio_a_pedido' : 'sorteio',
       }));
   }
-  const sorteados = [
+  const sorteiosDoRollin = [
     ...(sessionF ? await loadSorteios('F') : []),
     ...(sessionM ? await loadSorteios('M') : []),
   ];
+  // Merge com --extra-sorteio, dedup por nome+grupo (CLI tem precedência).
+  const sorteadosMap = new Map();
+  for (const s of sorteiosDoRollin) sorteadosMap.set(`${s.group}|${s.name.toLowerCase()}`, s);
+  for (const s of EXTRA_SORTEIOS) sorteadosMap.set(`${s.group}|${s.name.toLowerCase()}`, s);
+  const sorteados = [...sorteadosMap.values()];
+  if (EXTRA_SORTEIOS.length) {
+    console.log(`  --extra-sorteio aplicados: ${EXTRA_SORTEIOS.map(s => `${s.name}[${s.group}, ${s.points}pts]`).join(', ')}`);
+  }
   console.log(`  Sorteios: ${sorteados.length} (${sorteados.map(s => `${s.name}[${s.group}]`).join(', ') || '—'})`);
 
   // ---- 4. Resolver nomes contra a API do SM Torneio ----
@@ -289,7 +307,10 @@ if (require.main !== module) return;
     const courts = [];
     for (const chaveStr of Object.keys(gamesByChave).sort((a, b) => Number(a) - Number(b))) {
       const chave = Number(chaveStr);
-      const games = gamesByChave[chave];
+      // Ordena os jogos por jogoId (sequência cronológica). O algoritmo double-loss
+      // depende dessa ordem para determinar quem foi eliminado primeiro, e o
+      // Supabase devolve o array sem ordenação definida.
+      const games = gamesByChave[chave].slice().sort((a, b) => Number(a.jogoId) - Number(b.jogoId));
       const label = courtLabelFor(gender, chave);
 
       const seenKeys = [];
