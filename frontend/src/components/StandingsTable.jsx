@@ -11,6 +11,13 @@ function positionBadge(pos) {
   return 'bg-neutral-50 text-neutral-500';
 }
 
+function chanceIcon(ch) {
+  if (!ch) return null;
+  if (ch.titulo === 'vivo' || ch.titulo === 'garantido') return { emoji: '👑', title: 'Ainda pode ser campeã' };
+  if (ch.titulo === 'fora' && ch.trofeu === 'vivo') return { emoji: '🏆', title: 'Ainda pode ganhar troféu' };
+  return null;
+}
+
 const POSITION_FIELDS = [
   ['firstPlaces', '1º'],
   ['secondPlaces', '2º'],
@@ -28,7 +35,7 @@ function colocacoes(s) {
     .filter(([, n]) => n > 0);
 }
 
-export default function StandingsTable({ standings, showDetails = true }) {
+export default function StandingsTable({ standings, showDetails = true, chancesByParticipant = null }) {
   const { slug } = useTournament();
 
   if (!standings || standings.length === 0) {
@@ -44,7 +51,7 @@ export default function StandingsTable({ standings, showDetails = true }) {
       <table className="min-w-full text-sm border-separate border-spacing-0">
         <thead>
           <tr className="bg-neutral-50">
-            <th className="sticky left-0 z-20 w-14 bg-neutral-50 px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">#</th>
+            <th className="sticky left-0 z-20 bg-neutral-50 px-2 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">#</th>
             <th className="sticky left-14 z-20 bg-neutral-50 px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-r border-neutral-200">Nome</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Pts</th>
             <th className="px-4 py-3 text-center text-xs font-medium text-neutral-500 uppercase tracking-wider border-b border-neutral-200">Ganhos</th>
@@ -73,10 +80,18 @@ export default function StandingsTable({ standings, showDetails = true }) {
               key={s.participantId}
               className={rowBg}
             >
-              <td className={`sticky left-0 z-10 w-14 px-2 py-3 text-center border-b border-neutral-100 ${rowBg}`}>
-                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-base ${positionBadge(s.position)}`} title={`${s.position}º lugar`}>
-                  {POSITION_EMOJI[s.position] ?? s.position}
-                </span>
+              <td className={`sticky left-0 z-10 px-2 py-3 text-center border-b border-neutral-100 ${rowBg}`}>
+                {(() => {
+                  const ic = chanceIcon(chancesByParticipant ? chancesByParticipant.get(s.participantId) : null);
+                  return (
+                    <span className="inline-flex items-center gap-1">
+                      {ic && <span className="text-sm" title={ic.title}>{ic.emoji}</span>}
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-base ${positionBadge(s.position)}`} title={`${s.position}º lugar`}>
+                        {POSITION_EMOJI[s.position] ?? s.position}
+                      </span>
+                    </span>
+                  );
+                })()}
               </td>
               <td className={`sticky left-14 z-10 px-4 py-3 font-medium border-b border-r border-neutral-100 border-r-neutral-200 ${rowBg}`}>
                 <Link

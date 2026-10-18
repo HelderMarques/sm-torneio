@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
+import { useChances } from '../hooks/useChances';
 import StandingsTable from '../components/StandingsTable';
 import AproveitamentoTable from '../components/AproveitamentoTable';
 import SimulacaoButton from '../components/SimulacaoButton';
@@ -18,6 +19,11 @@ export default function Home() {
   const [lastRoundPodium, setLastRoundPodium] = useState(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState('pontuacao'); // 'pontuacao' | 'aproveitamento'
+
+  const { data: chancesData } = useChances(group);
+  const chancesMap = chancesData
+    ? new Map(chancesData.athletes.map((a) => [a.participantId, { titulo: a.titulo, trofeu: a.trofeu }]))
+    : null;
 
   useEffect(() => {
     setLoading(true);
@@ -200,7 +206,7 @@ export default function Home() {
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-200 border-t-neutral-500" />
           </div>
         ) : (
-          <StandingsTable standings={standings} showDetails={true} />
+          <StandingsTable standings={standings} showDetails={true} chancesByParticipant={chancesMap} />
         )}
       </div>
 

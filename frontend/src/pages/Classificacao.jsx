@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
+import { useChances } from '../hooks/useChances';
 import StandingsTable from '../components/StandingsTable';
 import AproveitamentoTable from '../components/AproveitamentoTable';
 import SimulacaoButton from '../components/SimulacaoButton';
@@ -14,6 +15,11 @@ export default function Classificacao() {
 
   const groupKey = group === 'masculino' ? 'M' : 'F';
   const groupLabel = groupKey === 'M' ? 'Masculino' : 'Feminino';
+
+  const { data: chancesData } = useChances(groupKey);
+  const chancesMap = chancesData
+    ? new Map(chancesData.athletes.map((a) => [a.participantId, { titulo: a.titulo, trofeu: a.trofeu }]))
+    : null;
 
   useEffect(() => {
     setLoading(true);
@@ -84,7 +90,7 @@ export default function Classificacao() {
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-neutral-200 border-t-neutral-500"></div>
           </div>
         ) : (
-          <StandingsTable standings={standings} />
+          <StandingsTable standings={standings} chancesByParticipant={chancesMap} />
         )}
       </div>
 
