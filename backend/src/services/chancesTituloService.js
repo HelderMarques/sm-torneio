@@ -1,4 +1,14 @@
 // backend/src/services/chancesTituloService.js
+const { PrismaClient } = require('@prisma/client');
+const { loadSettings } = require('../utils/settings');
+const { getPointsForResult, getStandings } = require('./standingsService');
+
+const prisma = new PrismaClient();
+
+function ordinal(n) {
+  return ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th'][n];
+}
+
 
 /**
  * Projeta a pontuação final de uma atleta aplicando as mesmas regras do
@@ -132,4 +142,93 @@ function buildCondicoes(a, ctx) {
   return out.length ? out : ['Situação em aberto.'];
 }
 
-module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes };
+/** Reúne dados do banco, projeta piso/teto, deriva status, estima probabilidade. */
+async function computeChances(group, tournamentId) {
+  const [tournament, settings, standings] = await Promise.all([
+    prisma.tournament.findUnique({ where: { id: tournamentId } }),
+    loadSettings(),
+    getStandings(group, tournamentId),
+  ]);
+  if (!tournament) throw new Error('Torneio não encontrado');
+
+  const totalRounds = tournament.totalRounds;
+  const discardStartsAfter = settings.int('discard_starts_after_round');
+  const bonusValue = settings.int('bonus_full_attendance');
+  const trophyPositions = settings.int(group === 'M' ? 'trophy_positions_masculino' : 'trophy_positions_feminino');
+  const pointsTable = [1, 2, 3, 4, 5, 6, 7].map((n) => settings.int(`points_${ordinal(n)}_place`));
+
+  const completedRounds = await prisma.round.findMany({
+    where: { group, status: 'COMPLETED', tournamentId },
+  });
+  const completedCount = completedRounds.length;
+  const remaining = totalRounds - completedCount;
+
+  const participants = await prisma.participant.findMany({
+    where: { group, active: true, tournamentId },
+    include: {
+      results: { include: { round: true }, where: { round: { group, status: 'COMPLETED', tournamentId } } },
+    },
+  });
+
+  const base = participants.map((p) => {
+    const scores = p.results.map((r) => getPointsForResult(r, settings));
+    const presentCompleted = p.results.filter(
+      (r) => r.present || r.absentReason === 'SORTEIO' || r.absentReason === 'SORTEIO_VOLUNTARIA'
+    ).length;
+    const penalty = p.results.reduce((s, r) => s + Math.abs(r.uniformPenalty), 0);
+    const presentAllCompleted = presentCompleted === completedCount;
+    return { id: p.id, name: p.name, scores, presentCompleted, penalty, presentAllCompleted };
+  });
+
+  const withBounds = base.map((a) => {
+    const floor = projectFinalPoints(a.scores.concat(Array(remaining).fill(0)), {
+      totalRounds, completedCount: totalRounds, discardStartsAfter, bonusValue,
+      presentAllRounds: false, penalty: a.penalty,
+    });
+    const ceil = projectFinalPoints(a.scores.concat(Array(remaining).fill(pointsTable[0])), {
+      totalRounds, completedCount: totalRounds, discardStartsAfter, bonusValue,
+      presentAllRounds: a.presentAllCompleted, penalty: a.penalty,
+    });
+    return { ...a, floor, ceil };
+  });
+
+  const statuses = deriveStatuses(withBounds.map((a) => ({ id: a.id, floor: a.floor, ceil: a.ceil })), trophyPositions);
+  const statusById = new Map(statuses.map((s) => [s.id, s]));
+
+  const probs = monteCarloProbabilities(
+    base.map((a) => ({ id: a.id, scores: a.scores, presentCompleted: a.presentCompleted, penalty: a.penalty })),
+    { totalRounds, remaining, discardStartsAfter, bonusValue, pointsTable, trophyPositions, iterations: 20000, seed: 12345 }
+  );
+  const probById = new Map(probs.map((p) => [p.id, p]));
+
+  const posById = new Map(standings.map((s) => [s.participantId, s.position]));
+  const ptsById = new Map(standings.map((s) => [s.participantId, s.pointsValid]));
+  const leader = standings[0] || null;
+
+  const athletes = withBounds
+    .map((a) => {
+      const st = statusById.get(a.id);
+      const pr = probById.get(a.id);
+      const item = {
+        participantId: a.id,
+        name: a.name,
+        currentPosition: posById.get(a.id) ?? null,
+        currentPoints: ptsById.get(a.id) ?? a.floor,
+        maxPoints: a.ceil,
+        titulo: st.titulo,
+        trofeu: st.trofeu,
+        probTitulo: pr.probTitulo,
+        probTrofeu: pr.probTrofeu,
+      };
+      item.condicoes = buildCondicoes(item, {
+        leaderName: leader ? leader.name : null,
+        leaderPoints: leader ? leader.pointsValid : null,
+      });
+      return item;
+    })
+    .sort((x, y) => (x.currentPosition ?? 999) - (y.currentPosition ?? 999));
+
+  return { group, totalRounds, remaining, trophyPositions, athletes };
+}
+
+module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes, computeChances };
