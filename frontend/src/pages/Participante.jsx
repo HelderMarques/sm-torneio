@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTournament } from '../hooks/useTournament';
 import AproveitamentoMini from '../components/AproveitamentoMini';
+import ChancesTitulo from '../components/ChancesTitulo';
 
 /* ─── helpers ───────────────────────────────────────────────── */
 function initials(name) {
@@ -409,6 +410,11 @@ export default function Participante() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* ── 2a. CHANCES DE TÍTULO E TROFÉU ─────────────────────── */}
+      <section className="mb-5">
+        <ChancesTitulo participantId={id} group={participant.group} />
       </section>
 
       {/* ── 2b. APROVEITAMENTO (mini-rankings) ─────────────────── */}
