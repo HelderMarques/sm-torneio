@@ -158,3 +158,20 @@ test('describeBlockers: distingue faltar, não vencer e ignora quem não ameaça
   assert.ok(/Katia não pode vencer/i.test(txt), `esperava Katia não vencer; got: ${txt}`);
   assert.ok(!/Ana/.test(txt), `Ana não deveria aparecer; got: ${txt}`);
 });
+
+const { leaderClinchPosition } = require('../src/services/chancesTituloService');
+
+test('leaderClinchPosition: líder precisa de 2º para garantir (teto rival = 650)', () => {
+  const cfg = { pointsTable: [100, 80, 70, 60, 50, 40, 30], totalRounds: 9, discardStartsAfter: 5, bonusValue: 20 };
+  // Giovana: presença total, soma 610, menor 50.
+  //   2º (80): 610+80-50+20 = 660 > 650 ✓ ; 3º (70): 650, NÃO supera (empate) → mínimo é 2º.
+  const giovana = { scores: [100, 100, 80, 80, 80, 60, 60, 50], presentAllCompleted: true, penalty: 0 };
+  assert.strictEqual(leaderClinchPosition(giovana, 650, cfg), 2);
+});
+
+test('leaderClinchPosition: null quando nem vencendo garante', () => {
+  const cfg = { pointsTable: [100, 80, 70, 60, 50, 40, 30], totalRounds: 9, discardStartsAfter: 5, bonusValue: 20 };
+  const giovana = { scores: [100, 100, 80, 80, 80, 60, 60, 50], presentAllCompleted: true, penalty: 0 };
+  // teto inalcançável mesmo vencendo (melhor caso dela = 680)
+  assert.strictEqual(leaderClinchPosition(giovana, 999, cfg), null);
+});

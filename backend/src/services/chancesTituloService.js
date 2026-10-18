@@ -184,6 +184,32 @@ function describeBlockers(a, others, cfg) {
   return parts;
 }
 
+/**
+ * Com 1 etapa restante, menor colocação (pior posição) que garante o título à líder:
+ * o menor nº de pontos cujo resultado final supera ESTRITAMENTE o melhor caso de
+ * todas as demais (empate não decreta — iria a desempate).
+ * @param {{scores:number[], presentAllCompleted:boolean, penalty:number}} leader
+ * @param {number} maxOtherCeil maior "melhor caso" entre as demais atletas
+ * @param {object} cfg { pointsTable, totalRounds, discardStartsAfter, bonusValue }
+ * @returns {number|null} posição (1..7) mínima para ser campeã; null se nem vencendo garante
+ */
+function leaderClinchPosition(leader, maxOtherCeil, cfg) {
+  const finalWith = (points) =>
+    projectFinalPoints(leader.scores.concat([points]), {
+      totalRounds: cfg.totalRounds,
+      completedCount: cfg.totalRounds,
+      discardStartsAfter: cfg.discardStartsAfter,
+      bonusValue: cfg.bonusValue,
+      presentAllRounds: leader.presentAllCompleted,
+      penalty: leader.penalty,
+    });
+  // do pior (último) ao melhor (1º): a primeira posição que ainda garante é o mínimo exigido
+  for (let i = cfg.pointsTable.length - 1; i >= 0; i--) {
+    if (finalWith(cfg.pointsTable[i]) > maxOtherCeil) return i + 1;
+  }
+  return null; // nem vencendo garante
+}
+
 /** Reúne dados do banco, projeta piso/teto, deriva status, estima probabilidade. */
 async function computeChances(group, tournamentId) {
   const [tournament, settings, standings] = await Promise.all([
@@ -282,6 +308,23 @@ async function computeChances(group, tournamentId) {
         if (blockers.length) {
           item.condicoes = item.condicoes.concat([`Além disso, para você ser campeã, ${blockers.join(' e ')}.`]);
         }
+      } else if (remaining === 1 && isLeader && item.titulo === 'vivo') {
+        const otherCeils = withBounds.filter((o) => o.id !== a.id).map((o) => o.ceil);
+        const maxOtherCeil = otherCeils.length ? Math.max(...otherCeils) : -Infinity;
+        const pos = leaderClinchPosition(
+          { scores: a.scores, presentAllCompleted: a.presentAllCompleted, penalty: a.penalty },
+          maxOtherCeil,
+          { pointsTable, totalRounds, discardStartsAfter, bonusValue }
+        );
+        let frase;
+        if (pos === null) {
+          frase = 'Nem vencendo a última etapa dá para garantir o título ainda — vai depender dos outros resultados.';
+        } else if (pos === 1) {
+          frase = 'Para garantir o título matematicamente, você precisa vencer a última etapa.';
+        } else {
+          frase = `Terminando em ${pos}º lugar ou melhor na última etapa, você é campeã matematicamente.`;
+        }
+        item.condicoes = item.condicoes.concat([frase]);
       }
       return item;
     })
@@ -298,4 +341,4 @@ async function computeChances(group, tournamentId) {
   return { group, totalRounds, remaining, trophyPositions, athletes };
 }
 
-module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes, describeBlockers, computeChances };
+module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes, describeBlockers, leaderClinchPosition, computeChances };
