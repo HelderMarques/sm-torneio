@@ -16,7 +16,7 @@ export default function Classificacao() {
   const groupKey = group === 'masculino' ? 'M' : 'F';
   const groupLabel = groupKey === 'M' ? 'Masculino' : 'Feminino';
 
-  const { data: chancesData } = useChances(groupKey);
+  const { data: chancesData } = useChances(groupKey, groupKey === 'F');
   const chancesMap = chancesData
     ? new Map(chancesData.athletes.map((a) => [a.participantId, { titulo: a.titulo, trofeu: a.trofeu }]))
     : null;

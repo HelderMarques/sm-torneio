@@ -412,10 +412,12 @@ export default function Participante() {
         </div>
       </section>
 
-      {/* ── 2a. CHANCES DE TÍTULO E TROFÉU ─────────────────────── */}
-      <section className="mb-5">
-        <ChancesTitulo participantId={id} group={participant.group} />
-      </section>
+      {/* ── 2a. CHANCE DE TÍTULO (só Feminino por enquanto) ────── */}
+      {participant.group === 'F' && (
+        <section className="mb-5">
+          <ChancesTitulo participantId={id} group={participant.group} />
+        </section>
+      )}
 
       {/* ── 2b. APROVEITAMENTO (mini-rankings) ─────────────────── */}
       <section className="mb-5">

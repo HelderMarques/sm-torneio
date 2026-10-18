@@ -20,7 +20,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState('pontuacao'); // 'pontuacao' | 'aproveitamento'
 
-  const { data: chancesData } = useChances(group);
+  const { data: chancesData } = useChances(group, group === 'F');
   const chancesMap = chancesData
     ? new Map(chancesData.athletes.map((a) => [a.participantId, { titulo: a.titulo, trofeu: a.trofeu }]))
     : null;
