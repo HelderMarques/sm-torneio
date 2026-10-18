@@ -47,4 +47,59 @@ function deriveStatuses(athletes, K) {
   });
 }
 
-module.exports = { projectFinalPoints, deriveStatuses };
+// RNG determinístico (mulberry32) para simulações reproduzíveis
+function mulberry32(seed) {
+  let t = seed >>> 0;
+  return function () {
+    t += 0x6d2b79f5;
+    let x = Math.imul(t ^ (t >>> 15), 1 | t);
+    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Estima P(campeã) e P(troféu) por atleta via Monte Carlo com modelo UNIFORME.
+ * @param {{id,scores:number[],presentCompleted:number,penalty:number}[]} athletes
+ * @param {object} cfg { totalRounds, remaining, discardStartsAfter, bonusValue, pointsTable, trophyPositions, iterations, seed }
+ */
+function monteCarloProbabilities(athletes, cfg) {
+  const rng = mulberry32(cfg.seed || 1);
+  const table = cfg.pointsTable;
+  const titleWins = new Map(athletes.map((a) => [a.id, 0]));
+  const trophyWins = new Map(athletes.map((a) => [a.id, 0]));
+  const N = cfg.iterations;
+
+  for (let it = 0; it < N; it++) {
+    const finals = athletes.map((a) => {
+      const future = [];
+      for (let r = 0; r < cfg.remaining; r++) {
+        future.push(table[Math.floor(rng() * table.length)]);
+      }
+      const scores = a.scores.concat(future);
+      const presentAll = a.presentCompleted + cfg.remaining === cfg.totalRounds;
+      const pts = projectFinalPoints(scores, {
+        totalRounds: cfg.totalRounds,
+        completedCount: cfg.totalRounds,
+        discardStartsAfter: cfg.discardStartsAfter,
+        bonusValue: cfg.bonusValue,
+        presentAllRounds: presentAll,
+        penalty: a.penalty,
+      });
+      return { id: a.id, pts, tie: rng() };
+    });
+    finals.sort((x, y) => (y.pts - x.pts) || (y.tie - x.tie));
+    titleWins.set(finals[0].id, titleWins.get(finals[0].id) + 1);
+    for (let i = 0; i < Math.min(cfg.trophyPositions, finals.length); i++) {
+      trophyWins.set(finals[i].id, trophyWins.get(finals[i].id) + 1);
+    }
+  }
+
+  return athletes.map((a) => ({
+    id: a.id,
+    probTitulo: titleWins.get(a.id) / N,
+    probTrofeu: trophyWins.get(a.id) / N,
+  }));
+}
+
+module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities };

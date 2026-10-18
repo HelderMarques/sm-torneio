@@ -68,3 +68,38 @@ test('deriveStatuses: fronteira vira depende_desempate (título)', () => {
   const r = deriveStatuses(athletes, 1);
   assert.strictEqual(r.find((x) => x.id === 'A').titulo, 'depende_desempate');
 });
+
+const { monteCarloProbabilities } = require('../src/services/chancesTituloService');
+
+test('monteCarloProbabilities: invariantes de coerência', () => {
+  const athletes = [
+    { id: 'A', scores: [100, 100, 100], presentCompleted: 3, penalty: 0 },
+    { id: 'B', scores: [80, 80, 80], presentCompleted: 3, penalty: 0 },
+    { id: 'C', scores: [60, 60, 60], presentCompleted: 3, penalty: 0 },
+  ];
+  const cfg = { totalRounds: 4, remaining: 1, discardStartsAfter: 5, bonusValue: 20,
+    pointsTable: [100, 80, 70, 60, 50, 40, 30], trophyPositions: 2, iterations: 5000, seed: 42 };
+  const probs = monteCarloProbabilities(athletes, cfg);
+
+  const total = probs.reduce((s, p) => s + p.probTitulo, 0);
+  assert.ok(Math.abs(total - 1) < 0.02, `soma probTitulo ≈ 1, got ${total}`);
+  for (const p of probs) {
+    assert.ok(p.probTitulo >= 0 && p.probTitulo <= 1);
+    assert.ok(p.probTrofeu >= p.probTitulo - 1e-9, 'probTrofeu >= probTitulo');
+  }
+  const pa = probs.find((p) => p.id === 'A').probTitulo;
+  const pc = probs.find((p) => p.id === 'C').probTitulo;
+  assert.ok(pa > pc, 'líder tem mais chance que lanterna');
+});
+
+test('monteCarloProbabilities: determinístico com mesma seed', () => {
+  const athletes = [
+    { id: 'A', scores: [100], presentCompleted: 1, penalty: 0 },
+    { id: 'B', scores: [80], presentCompleted: 1, penalty: 0 },
+  ];
+  const cfg = { totalRounds: 2, remaining: 1, discardStartsAfter: 5, bonusValue: 20,
+    pointsTable: [100, 80, 70, 60, 50, 40, 30], trophyPositions: 1, iterations: 1000, seed: 7 };
+  const a = monteCarloProbabilities(athletes, cfg);
+  const b = monteCarloProbabilities(athletes, cfg);
+  assert.deepStrictEqual(a, b);
+});
