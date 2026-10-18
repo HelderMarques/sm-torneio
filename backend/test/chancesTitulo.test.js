@@ -125,3 +125,13 @@ test('buildCondicoes: título vivo cita o alvo de pontos', () => {
   assert.ok(txt.includes('360'));
   assert.ok(txt.includes('Giovana'));
 });
+
+test('buildCondicoes: líder viva não manda alcançar a si mesma', () => {
+  const r = buildCondicoes(
+    { participantId: 'X', name: 'Eduarda', titulo: 'vivo', trofeu: 'vivo', currentPoints: 230, maxPoints: 800 },
+    { leaderName: 'Eduarda', leaderPoints: 230, leaderId: 'X' }
+  );
+  const txt = r.join(' ');
+  assert.ok(!txt.toLowerCase().includes('alcançar'), 'líder não deve ser mandada alcançar alguém');
+  assert.ok(txt.toLowerCase().includes('lidera'), 'deve reconhecer que ela lidera');
+});

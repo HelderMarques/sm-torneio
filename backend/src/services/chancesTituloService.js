@@ -115,7 +115,7 @@ function monteCarloProbabilities(athletes, cfg) {
 /**
  * Monta 1-2 frases de template a partir dos fatos já calculados.
  * @param {object} a atleta { name, titulo, trofeu, currentPoints, maxPoints }
- * @param {object} ctx { leaderName, leaderPoints }
+ * @param {object} ctx { leaderName, leaderPoints, leaderId }
  */
 function buildCondicoes(a, ctx) {
   if (a.titulo === 'garantido') return ['Título já garantido matematicamente.'];
@@ -128,7 +128,11 @@ function buildCondicoes(a, ctx) {
     return ['Sem chance matemática de troféu nesta temporada.'];
   }
   const out = [];
-  if (a.titulo === 'vivo' && ctx.leaderName) {
+  const isLeader = ctx.leaderId && a.participantId === ctx.leaderId;
+  if (a.titulo === 'vivo' && isLeader) {
+    out.push(`Você lidera com ${a.currentPoints} pts (no melhor caso, ${a.maxPoints} pts).`);
+    out.push(`O título ainda não está garantido: outras atletas podem te ultrapassar, então mantenha o desempenho nas etapas restantes.`);
+  } else if (a.titulo === 'vivo' && ctx.leaderName) {
     out.push(`Você tem ${a.currentPoints} pts. No melhor caso chega a ${a.maxPoints} pts.`);
     out.push(`Para alcançar ${ctx.leaderName} (${ctx.leaderPoints} pts) e ser campeã, precisa pontuar o máximo e torcer por tropeços da líder.`);
   } else if (a.titulo === 'depende_desempate') {
@@ -223,6 +227,7 @@ async function computeChances(group, tournamentId) {
       item.condicoes = buildCondicoes(item, {
         leaderName: leader ? leader.name : null,
         leaderPoints: leader ? leader.pointsValid : null,
+        leaderId: leader ? leader.participantId : null,
       });
       return item;
     })
