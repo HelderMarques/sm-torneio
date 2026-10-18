@@ -84,18 +84,63 @@ async function generateInsight({ viewer, simulatedStandings }) {
   }
 }
 
-const CHANCES_SYSTEM = `Você é um assistente do Torneio Secos & Molhados. Recebe FATOS já calculados sobre as chances de uma atleta (título e troféu) e deve reescrevê-los em 1-2 frases curtas, português brasileiro, segunda pessoa ("você"), tom encorajador e natural. SEM emojis, SEM markdown.
+const CHANCES_SYSTEM = `Você é o assistente do Torneio Secos & Molhados (tênis em duplas). Recebe FATOS já calculados sobre a chance de TÍTULO (ser campeã) de uma atleta e reescreve num texto curto, natural e fluido — 2 a 3 frases, português brasileiro, segunda pessoa ("você"), tom encorajador. SEM emojis, SEM markdown.
 
-REGRAS ABSOLUTAS:
-- NÃO altere, invente ou recalcule nenhum número, nome ou colocação. Use exatamente os valores recebidos.
-- NÃO adicione fatos novos. Apenas reescreva com clareza o que recebeu.
-- Se os fatos disserem "garantido" ou "sem chance", mantenha esse significado.`;
+REGRAS ABSOLUTAS (quebrá-las invalida a resposta):
+- NÃO altere, invente ou recalcule NENHUM número, nome ou colocação. Use exatamente os valores recebidos (pontos, "Nº ou pior", nomes das atletas).
+- NÃO adicione fatos novos nem opiniões sobre probabilidade.
+- Mantenha o significado exato: "garantido", "sem chance", "precisa faltar", "terminar em Nº ou pior", "empata/desempate".
+- Junte as condições de forma natural, evitando repetição e listas longas.`;
 
+// Chamada à OpenAI via fetch nativo (sem dependência nova). Ativada por OPENAI_API_KEY.
+async function callOpenAI(system, user) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return null;
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model,
+        max_tokens: MAX_TOKENS,
+        temperature: 0.4,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+      }),
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      console.error('[insightService] OpenAI HTTP', resp.status);
+      return null;
+    }
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content?.trim();
+    return text || null;
+  } catch (err) {
+    console.error('[insightService] Erro OpenAI:', err.message);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Redige o texto das chances. Preferência: OpenAI (OPENAI_API_KEY) → Anthropic → null (template).
 async function generateChancesText({ name, facts }) {
+  const userPrompt = `Atleta: ${name}\nFatos (NÃO altere números, nomes ou colocações; apenas reescreva com naturalidade):\n- ${facts.join('\n- ')}`;
+
+  // 1) OpenAI, se configurada
+  const viaOpenAI = await callOpenAI(CHANCES_SYSTEM, userPrompt);
+  if (viaOpenAI) return viaOpenAI;
+
+  // 2) Anthropic, se configurada
   const c = getClient();
   if (!c) return null;
   try {
-    const userPrompt = `Atleta: ${name}\nFatos (não altere números):\n- ${facts.join('\n- ')}`;
     const sdkCall = c.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,

@@ -153,10 +153,30 @@ test('describeBlockers: distingue faltar, não vencer e ignora quem não ameaça
   const ana = { name: 'Ana', scores: [100, 80, 80, 60, 60, 50, 60, 30], presentAllCompleted: true, penalty: 0 };
 
   const r = describeBlockers(a, [giovana, katia, ana], cfg);
-  const txt = r.join(' | ');
-  assert.ok(/Giovana precisa faltar/i.test(txt), `esperava Giovana faltar; got: ${txt}`);
-  assert.ok(/Katia não pode vencer/i.test(txt), `esperava Katia não vencer; got: ${txt}`);
-  assert.ok(!/Ana/.test(txt), `Ana não deveria aparecer; got: ${txt}`);
+  const byName = Object.fromEntries(r.map((i) => [i.name, i.position]));
+  assert.strictEqual(byName.Giovana, null, 'Giovana deve precisar faltar (position null)');
+  assert.strictEqual(byName.Katia, 2, 'Katia não pode vencer (position 2)');
+  assert.ok(!('Ana' in byName), 'Ana não deveria ser bloqueadora');
+});
+
+const { formatBlockers } = require('../src/services/chancesTituloService');
+
+test('formatBlockers: agrupa faltas e não repete o parêntese', () => {
+  const frase = formatBlockers([
+    { name: 'Giovana', position: null },
+    { name: 'Katia', position: null },
+    { name: 'Ana', position: 3 },
+    { name: 'Natalia', position: 6 },
+  ]);
+  // agrupa as duas faltas numa cláusula só (uma única ocorrência do parêntese)
+  assert.ok(/Giovana e Katia precisam faltar/i.test(frase), `faltas agrupadas; got: ${frase}`);
+  assert.strictEqual((frase.match(/à sua frente/g) || []).length, 1, 'parêntese não pode repetir');
+  assert.ok(/Ana precisa terminar em 3º ou pior/i.test(frase));
+  assert.ok(/Natalia precisa terminar em 6º ou pior/i.test(frase));
+});
+
+test('formatBlockers: vazio retorna null', () => {
+  assert.strictEqual(formatBlockers([]), null);
 });
 
 const { leaderClinchPosition } = require('../src/services/chancesTituloService');

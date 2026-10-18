@@ -131,7 +131,7 @@ function buildCondicoes(a, ctx) {
   if (a.titulo === 'vivo' && ctx.leaderName) {
     return [
       `Você tem ${a.currentPoints} pts. No melhor caso chega a ${a.maxPoints} pts.`,
-      `Para alcançar ${ctx.leaderName} (${ctx.leaderPoints} pts) e ser campeã, precisa pontuar o máximo e torcer por tropeços da líder.`,
+      `Para alcançar ${ctx.leaderName} (${ctx.leaderPoints} pts) e ser campeã, você precisa pontuar o máximo na última etapa.`,
     ];
   }
   if (a.titulo === 'depende_desempate') {
@@ -150,7 +150,8 @@ function buildCondicoes(a, ctx) {
  * @param {{name:string, ceil:number}} a contender (melhor caso = ceil)
  * @param {{name:string, scores:number[], presentAllCompleted:boolean, penalty:number}[]} others
  * @param {object} cfg { pointsTable, totalRounds, discardStartsAfter, bonusValue }
- * @returns {string[]} frases de impedimento (vazio se ninguém bloqueia)
+ * @returns {{name:string, position:number|null}[]} por bloqueador: posição mínima
+ *   que ele pode ter sem ultrapassar A (2..7), ou null = precisa faltar. Vazio se ninguém bloqueia.
  */
 function describeBlockers(a, others, cfg) {
   const aBest = a.ceil;
@@ -164,7 +165,7 @@ function describeBlockers(a, others, cfg) {
       penalty: o.penalty,
     });
 
-  const parts = [];
+  const items = [];
   for (const o of others) {
     // Se nem vencendo a etapa o ultrapassa A, não é bloqueador.
     if (finalWith(o, cfg.pointsTable[0], true) <= aBest) continue;
@@ -173,15 +174,42 @@ function describeBlockers(a, others, cfg) {
     for (let i = 0; i < cfg.pointsTable.length; i++) {
       if (finalWith(o, cfg.pointsTable[i], true) <= aBest) { okIdx = i; break; }
     }
-    if (okIdx === -1) {
-      parts.push(`a ${o.name} precisa faltar a última etapa (mesmo em último lugar ela se mantém à sua frente)`);
-    } else if (okIdx === 1) {
-      parts.push(`a ${o.name} não pode vencer a última etapa`);
-    } else {
-      parts.push(`a ${o.name} precisa terminar em ${okIdx + 1}º ou pior na última etapa`);
-    }
+    items.push({ name: o.name, position: okIdx === -1 ? null : okIdx + 1 });
   }
-  return parts;
+  return items;
+}
+
+/** Junta nomes de forma natural: "A", "A e B", "A, B e C". */
+function joinNames(names) {
+  if (names.length <= 1) return names[0] || '';
+  if (names.length === 2) return `${names[0]} e ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
+}
+
+/**
+ * Monta uma frase natural dos bloqueadores, agrupando por tipo (evita repetição).
+ * @param {{name:string, position:number|null}[]} items de describeBlockers
+ * @returns {string|null} frase única ou null se não houver bloqueador
+ */
+function formatBlockers(items) {
+  if (!items || !items.length) return null;
+  const falta = items.filter((i) => i.position === null).map((i) => i.name);
+  const naoVence = items.filter((i) => i.position === 2).map((i) => i.name);
+  const posic = items.filter((i) => i.position && i.position > 2);
+
+  const clauses = [];
+  if (falta.length) {
+    const pl = falta.length > 1;
+    clauses.push(`${joinNames(falta)} ${pl ? 'precisam' : 'precisa'} faltar a última etapa (mesmo terminando em último, ${pl ? 'ficam' : 'fica'} à sua frente)`);
+  }
+  if (naoVence.length) {
+    const pl = naoVence.length > 1;
+    clauses.push(`${joinNames(naoVence)} não ${pl ? 'podem' : 'pode'} vencer a última etapa`);
+  }
+  for (const p of posic) {
+    clauses.push(`${p.name} precisa terminar em ${p.position}º ou pior`);
+  }
+  return `Para você ter chance do título, ${clauses.join('; ')}.`;
 }
 
 /**
@@ -305,8 +333,9 @@ async function computeChances(group, tournamentId) {
             .map((o) => ({ name: o.name, scores: o.scores, presentAllCompleted: o.presentAllCompleted, penalty: o.penalty })),
           { pointsTable, totalRounds, discardStartsAfter, bonusValue }
         );
-        if (blockers.length) {
-          item.condicoes = item.condicoes.concat([`Além disso, para você ser campeã, ${blockers.join(' e ')}.`]);
+        const frase = formatBlockers(blockers);
+        if (frase) {
+          item.condicoes = item.condicoes.concat([frase]);
         }
       } else if (remaining === 1 && isLeader && item.titulo === 'vivo') {
         const otherCeils = withBounds.filter((o) => o.id !== a.id).map((o) => o.ceil);
@@ -341,4 +370,4 @@ async function computeChances(group, tournamentId) {
   return { group, totalRounds, remaining, trophyPositions, athletes };
 }
 
-module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes, describeBlockers, leaderClinchPosition, computeChances };
+module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes, describeBlockers, formatBlockers, leaderClinchPosition, computeChances };
