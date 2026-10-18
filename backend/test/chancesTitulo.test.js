@@ -103,3 +103,25 @@ test('monteCarloProbabilities: determinístico com mesma seed', () => {
   const b = monteCarloProbabilities(athletes, cfg);
   assert.deepStrictEqual(a, b);
 });
+
+const { buildCondicoes } = require('../src/services/chancesTituloService');
+
+test('buildCondicoes: garantido retorna frase de garantido', () => {
+  const r = buildCondicoes({ name: 'Ana', titulo: 'garantido', trofeu: 'garantido' }, {});
+  assert.ok(r[0].toLowerCase().includes('garantid'));
+});
+
+test('buildCondicoes: fora de tudo retorna frase sem chance', () => {
+  const r = buildCondicoes({ name: 'Ana', titulo: 'fora', trofeu: 'fora' }, {});
+  assert.ok(r.join(' ').toLowerCase().includes('sem chance'));
+});
+
+test('buildCondicoes: título vivo cita o alvo de pontos', () => {
+  const r = buildCondicoes(
+    { name: 'Natalia', titulo: 'vivo', trofeu: 'garantido', currentPoints: 260, maxPoints: 360 },
+    { leaderName: 'Giovana', leaderPoints: 340 }
+  );
+  const txt = r.join(' ');
+  assert.ok(txt.includes('360'));
+  assert.ok(txt.includes('Giovana'));
+});

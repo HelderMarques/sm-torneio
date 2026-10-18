@@ -102,4 +102,34 @@ function monteCarloProbabilities(athletes, cfg) {
   }));
 }
 
-module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities };
+/**
+ * Monta 1-2 frases de template a partir dos fatos já calculados.
+ * @param {object} a atleta { name, titulo, trofeu, currentPoints, maxPoints }
+ * @param {object} ctx { leaderName, leaderPoints }
+ */
+function buildCondicoes(a, ctx) {
+  if (a.titulo === 'garantido') return ['Título já garantido matematicamente.'];
+  if (a.trofeu === 'garantido' && (a.titulo === 'fora' || a.titulo === 'depende_desempate')) {
+    const base = ['Troféu já garantido.'];
+    if (a.titulo === 'depende_desempate') base.push('O título ainda depende de critérios de desempate.');
+    return base;
+  }
+  if (a.titulo === 'fora' && a.trofeu === 'fora') {
+    return ['Sem chance matemática de troféu nesta temporada.'];
+  }
+  const out = [];
+  if (a.titulo === 'vivo' && ctx.leaderName) {
+    out.push(`Você tem ${a.currentPoints} pts. No melhor caso chega a ${a.maxPoints} pts.`);
+    out.push(`Para alcançar ${ctx.leaderName} (${ctx.leaderPoints} pts) e ser campeã, precisa pontuar o máximo e torcer por tropeços da líder.`);
+  } else if (a.titulo === 'depende_desempate') {
+    out.push(`No melhor caso você empata na liderança (${a.maxPoints} pts); o título sairia em critério de desempate.`);
+  }
+  if (a.trofeu === 'vivo') {
+    out.push(`Para entrar na zona de troféu, pontue o máximo nas etapas restantes.`);
+  } else if (a.trofeu === 'depende_desempate' && out.length === 0) {
+    out.push('A vaga de troféu depende de critérios de desempate.');
+  }
+  return out.length ? out : ['Situação em aberto.'];
+}
+
+module.exports = { projectFinalPoints, deriveStatuses, monteCarloProbabilities, buildCondicoes };
