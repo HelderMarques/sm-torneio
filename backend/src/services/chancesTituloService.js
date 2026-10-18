@@ -17,4 +17,34 @@ function projectFinalPoints(perRoundPoints, opts) {
   return raw - discard + bonus - (opts.penalty || 0);
 }
 
-module.exports = { projectFinalPoints };
+/**
+ * Deriva status determinístico de título e troféu por atleta.
+ * @param {{id:string, floor:number, ceil:number}[]} athletes
+ * @param {number} K posições premiadas (troféu)
+ * @returns {{id:string, titulo:string, trofeu:string}[]} status ∈ garantido|vivo|depende_desempate|fora
+ */
+function deriveStatuses(athletes, K) {
+  return athletes.map((a) => {
+    const others = athletes.filter((j) => j.id !== a.id);
+    const beatA = others.filter((j) => j.ceil > a.floor).length;
+    const maxFloorOthers = others.length ? Math.max(...others.map((j) => j.floor)) : -Infinity;
+    const strictlyAbove = others.filter((j) => j.floor > a.ceil).length;
+    const weaklyAbove = others.filter((j) => j.floor >= a.ceil).length;
+
+    let titulo;
+    if (beatA === 0) titulo = 'garantido';
+    else if (a.ceil > maxFloorOthers) titulo = 'vivo';
+    else if (a.ceil === maxFloorOthers) titulo = 'depende_desempate';
+    else titulo = 'fora';
+
+    let trofeu;
+    if (beatA < K) trofeu = 'garantido';
+    else if (strictlyAbove >= K) trofeu = 'fora';
+    else if (weaklyAbove >= K) trofeu = 'depende_desempate';
+    else trofeu = 'vivo';
+
+    return { id: a.id, titulo, trofeu };
+  });
+}
+
+module.exports = { projectFinalPoints, deriveStatuses };

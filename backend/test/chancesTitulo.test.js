@@ -28,3 +28,43 @@ test('projectFinalPoints: sem descarte antes da 5a etapa', () => {
   const r = projectFinalPoints(scores, { ...OPTS, completedCount: 2, presentAllRounds: false, penalty: 0 });
   assert.strictEqual(r, 180);
 });
+
+const { deriveStatuses } = require('../src/services/chancesTituloService');
+
+test('deriveStatuses: líder destacado é campeão garantido', () => {
+  const athletes = [
+    { id: 'A', floor: 500, ceil: 520 },
+    { id: 'B', floor: 200, ceil: 300 },
+  ];
+  const r = deriveStatuses(athletes, 1);
+  assert.strictEqual(r.find((x) => x.id === 'A').titulo, 'garantido');
+});
+
+test('deriveStatuses: quem não alcança o top K sai fora do troféu', () => {
+  const athletes = [
+    { id: 'A', floor: 500, ceil: 520 },
+    { id: 'B', floor: 480, ceil: 500 },
+    { id: 'C', floor: 100, ceil: 120 },
+  ];
+  const r = deriveStatuses(athletes, 2);
+  assert.strictEqual(r.find((x) => x.id === 'C').trofeu, 'fora');
+});
+
+test('deriveStatuses: quem pode alcançar fica vivo pro troféu', () => {
+  const athletes = [
+    { id: 'A', floor: 300, ceil: 400 },
+    { id: 'B', floor: 290, ceil: 390 },
+    { id: 'C', floor: 280, ceil: 395 },
+  ];
+  const r = deriveStatuses(athletes, 2);
+  assert.strictEqual(r.find((x) => x.id === 'C').trofeu, 'vivo');
+});
+
+test('deriveStatuses: fronteira vira depende_desempate (título)', () => {
+  const athletes = [
+    { id: 'A', floor: 300, ceil: 400 },
+    { id: 'B', floor: 400, ceil: 420 },
+  ];
+  const r = deriveStatuses(athletes, 1);
+  assert.strictEqual(r.find((x) => x.id === 'A').titulo, 'depende_desempate');
+});
